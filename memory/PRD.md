@@ -1,38 +1,48 @@
-# Coaching LMS — PRD
+# GYAN RISE RANA E-LEARNING — PRD
 
 ## Problem
-Build a complete modern Coaching LMS Web Application inspired by Physics Wallah, with Admin and Student roles, supporting batches, subjects, chapters, recorded videos, PDF notes, MCQ tests and YouTube live classes.
+Production-ready Coaching LMS inspired by Physics Wallah for institutes managing batches, subjects, chapters, recorded videos, PDF notes, MCQ tests, YouTube live classes with real-time chat, and student progress.
 
 ## Stack
-- Backend: FastAPI + MongoDB (motor)
+- Backend: FastAPI + MongoDB (motor) + WebSocket chat
 - Frontend: React 19 + Tailwind + Shadcn UI + React Router 7
-- Auth: JWT (httpOnly cookie + Authorization header), bcrypt
+- Auth: JWT in cookie + Bearer header, bcrypt
+- Branding: Blue (#1D4ED8) + Orange (#F97316) + White
 
 ## Personas
-- **Admin**: manages batches, subjects, chapters, videos, notes, MCQ tests, live classes, students
-- **Student**: enrolled in batches, watches videos, downloads notes, takes MCQ tests, joins live classes
+- **Admin** (manually provisioned, NOT publicly registerable): full CRUD on batches/subjects/chapters/videos/notes/tests/live classes/students; can pin & delete chat messages
+- **Student** (self-registers): enrolled in batches, watches videos with watermark, downloads notes, takes MCQ tests, joins live classes with real-time chat
 
-## Implemented (2026-02)
-- JWT auth (login/register/me/logout) + role-based RBAC
-- Seeded demo users: `admin@lms.com` / `admin123`, `student@lms.com` / `student123`
-- Seeded data: 3 batches (NEET, JEE, Class 10) × subjects × chapters × videos × notes × MCQ tests + live classes
-- Course taxonomy: Batch → Subject → Chapter → Videos / Notes / MCQ Tests
-- Student dashboard: welcome, upcoming live, continue-watching, my batches, latest notes/tests
-- Student flows: batch list, batch detail, subject detail, chapter detail (tabs), video player with prev/next + playlist + progress tracking, live class viewer (YouTube embed), MCQ test taking (timer + palette), instant result with breakdown
-- Admin flows: dashboard with counters, CRUD for batches/subjects/chapters/videos/notes, MCQ test editor, live class publish, students + enroll
-- Cascading deletes
-- Design: Cabinet Grotesk headings + IBM Plex Sans body, Crimson #C92A2A primary, Navy #1E3A8A accent
+## Iteration 1 (2026-02) — initial build
+- JWT auth, role-based RBAC, seeded demo accounts
+- Batch → Subject → Chapter → Videos / Notes / MCQ Tests taxonomy
+- Student dashboard, video player with prev/next, MCQ test taker with timer, live class viewer
+- Admin CRUD across all entities
 
-## Architecture-ready (not yet implemented)
-- Razorpay payment integration (batch purchase)
-- Android WebView app
-- Dynamic watermark on video player
-- Secure DRM video delivery
+## Iteration 2 (2026-02) — GYAN RISE RANA upgrade
+- **Branding**: full rename to GYAN RISE RANA E-LEARNING, browser title, Blue+Orange palette
+- **Auth fix**: register endpoint hard-coded to role=student; admin accounts only manually
+- **Live Chat**: WebSocket `/api/ws/chat/{lc}` — broadcast messages, presence, admin pin/delete; chat history persisted in `chat_messages` collection
+- **Video Watermark**: floating overlay with student name/email/date/time, animated drift
+- **Image Upload**: `/api/uploads/image` (admin, multipart, 4 MB cap) + `/api/images/{id}` serve, used for batch & subject covers; existing URL field still supported
+- **Recently Viewed** (`/recent`) + **Continue Watching** (already on dashboard)
+- **Course Completion**: `/api/progress/completion/{batch_id}` returns overall + per-subject %
+- **Role Guard**: students redirected away from `/admin/*` automatically
+- **Android prep**: documented FLAG_SECURE setup in `ANDROID_WEBVIEW.md`, mobile meta tags, no-context CSS, user-select disabled
+- **Seed idempotent**: canonical batches restored on each startup if missing
+
+## Test results
+- Iteration 1: 17/17 backend, all frontend flows
+- Iteration 2: 8/8 backend, all frontend flows (chat, watermark, image upload, completion, role guard)
+
+## Architecture-ready (not implemented)
+- Razorpay paid enrollment
+- Native Android WebView wrapper (guide ready in `/app/memory/ANDROID_WEBVIEW.md`)
+- Object-storage backed image hosting (currently base64 in DB — fine for cover images)
 
 ## Backlog
-- **P1**: Student attempt history, batch search/filter, video real progress (HTML5 events instead of poll)
-- **P2**: Bulk MCQ CSV import, certificate generation on test pass, leaderboards, parental login, push notifications
-- **P2**: Razorpay paid enrollment, Android WebView wrapper, watermarked video delivery
+- **P1**: chat message editing, batch search/filter, real HTML5 video progress events
+- **P2**: Razorpay paid enrollment, Android wrapper, bulk MCQ CSV import, certificates, leaderboards, push notifications
 
 ## Test Credentials
 See `/app/memory/test_credentials.md`.

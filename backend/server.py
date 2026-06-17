@@ -969,9 +969,6 @@ async def seed_users():
 
 
 async def seed_content():
-    if await db.batches.count_documents({}) > 0:
-        return
-
     student = await db.users.find_one({"email": os.environ["STUDENT_EMAIL"].lower()})
 
     batches_data = [
@@ -1037,6 +1034,9 @@ async def seed_content():
     ]
 
     for bdata in batches_data:
+        existing_batch = await db.batches.find_one({"name": bdata["name"]})
+        if existing_batch:
+            continue
         b = {"id": new_id(), **bdata, "created_at": now_iso()}
         await db.batches.insert_one(dict(b))
 
