@@ -12,16 +12,20 @@ import jwt
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, WebSocket, WebSocketDisconnect, UploadFile, File
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import Response as StarletteResponse
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
+import base64
+import asyncio
+from collections import defaultdict
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ["DB_NAME"]]
 
-app = FastAPI(title="Coaching LMS API")
+app = FastAPI(title="GYAN RISE RANA E-LEARNING API")
 api = APIRouter(prefix="/api")
 
 JWT_ALGORITHM = "HS256"
@@ -699,6 +703,215 @@ async def admin_dashboard(user: dict = Depends(require_admin)):
             "live_classes": await db.live_classes.count_documents({}),
         }
     }
+
+
+# ---------- Image Upload ----------
+ALLOWED_IMAGE_MIME = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
+MAX_IMAGE_BYTES = 4 * 1024 * 1024  # 4 MB
+
+
+@api.post("/uploads/image")
+async def upload_image(file: UploadFile = File(...), user: dict = Depends(require_admin)):
+    content = await file.read()
+    if len(content) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=400, detail="Image too large (max 4MB)")
+    if file.content_type not in ALLOWED_IMAGE_MIME:
+        raise HTTPException(status_code=400, detail="Unsupported image type")
+    image_id = new_id()
+    await db.images.insert_one(
+        {
+            "id": image_id,
+            "mime": file.content_type,
+            "data": base64.b64encode(content).decode("ascii"),
+            "uploaded_by": user["id"],
+            "created_at": now_iso(),
+        }
+    )
+    return {"id": image_id, "url": f"/api/images/{image_id}"}
+
+
+@api.get("/images/{image_id}")
+async def get_image(image_id: str):
+    doc = await db.images.find_one({"id": image_id})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Image not found")
+    data = base64.b64decode(doc["data"])
+    return StarletteResponse(
+        content=data,
+        media_type=doc["mime"],
+        headers={"Cache-Control": "public, max-age=2592000, immutable"},
+    )
+
+
+# ---------- Recently Viewed ----------
+@api.get("/progress/recently-viewed")
+async def recently_viewed(user: dict = Depends(get_current_user)):
+    items = await db.progress.find({"user_id": user["id"]}, {"_id": 0}).sort("updated_at", -1).to_list(15)
+    out = []
+    for p in items:
+        v = await db.videos.find_one({"id": p["video_id"]}, {"_id": 0})
+        if not v:
+            continue
+        ch = await db.chapters.find_one({"id": v["chapter_id"]}, {"_id": 0})
+        sub = await db.subjects.find_one({"id": ch["subject_id"]}, {"_id": 0}) if ch else None
+        out.append({**p, "video": v, "chapter": ch, "subject": sub})
+    return out
+
+
+# ---------- Course Completion ----------
+@api.get("/progress/completion/{batch_id}")
+async def batch_completion(batch_id: str, user: dict = Depends(get_current_user)):
+    subjects = await db.subjects.find({"batch_id": batch_id}, {"_id": 0}).to_list(200)
+    subject_ids = [s["id"] for s in subjects]
+    chapters = await db.chapters.find({"subject_id": {"$in": subject_ids}}, {"_id": 0}).to_list(500)
+    chapter_ids = [c["id"] for c in chapters]
+    videos = await db.videos.find({"chapter_id": {"$in": chapter_ids}}, {"_id": 0}).to_list(2000)
+    total = len(videos)
+    if total == 0:
+        return {"batch_id": batch_id, "completed": 0, "total": 0, "pct": 0, "per_subject": []}
+    video_ids = [v["id"] for v in videos]
+    progress = await db.progress.find({"user_id": user["id"], "video_id": {"$in": video_ids}}, {"_id": 0}).to_list(5000)
+    completed_set = {p["video_id"] for p in progress if p.get("duration_seconds") and p["position_seconds"] >= p["duration_seconds"] * 0.85}
+    # per subject
+    per_subject = []
+    for s in subjects:
+        s_chapter_ids = [c["id"] for c in chapters if c["subject_id"] == s["id"]]
+        s_videos = [v for v in videos if v["chapter_id"] in s_chapter_ids]
+        s_total = len(s_videos)
+        s_done = sum(1 for v in s_videos if v["id"] in completed_set)
+        per_subject.append({"id": s["id"], "name": s["name"], "color": s.get("color"), "completed": s_done, "total": s_total, "pct": round((s_done / s_total) * 100) if s_total else 0})
+    return {
+        "batch_id": batch_id,
+        "completed": len(completed_set),
+        "total": total,
+        "pct": round((len(completed_set) / total) * 100, 1),
+        "per_subject": per_subject,
+    }
+
+
+# ---------- Live Chat ----------
+class ChatSendIn(BaseModel):
+    live_class_id: str
+    message: str = Field(min_length=1, max_length=500)
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.rooms: dict[str, list[dict]] = defaultdict(list)
+        self.lock = asyncio.Lock()
+
+    async def connect(self, room_id: str, ws: WebSocket, user: dict):
+        await ws.accept()
+        async with self.lock:
+            self.rooms[room_id].append({"ws": ws, "user": user})
+        await self.broadcast_presence(room_id)
+
+    async def disconnect(self, room_id: str, ws: WebSocket):
+        async with self.lock:
+            self.rooms[room_id] = [c for c in self.rooms[room_id] if c["ws"] is not ws]
+        await self.broadcast_presence(room_id)
+
+    async def broadcast(self, room_id: str, payload: dict):
+        dead = []
+        for conn in list(self.rooms.get(room_id, [])):
+            try:
+                await conn["ws"].send_json(payload)
+            except Exception:
+                dead.append(conn["ws"])
+        if dead:
+            async with self.lock:
+                self.rooms[room_id] = [c for c in self.rooms[room_id] if c["ws"] not in dead]
+
+    async def broadcast_presence(self, room_id: str):
+        await self.broadcast(room_id, {"type": "presence", "online": len(self.rooms.get(room_id, []))})
+
+
+manager = ConnectionManager()
+
+
+async def authenticate_token(token: str) -> Optional[dict]:
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        user = await db.users.find_one({"id": payload["sub"]})
+        if not user:
+            return None
+        user.pop("password_hash", None)
+        user.pop("_id", None)
+        return user
+    except jwt.InvalidTokenError:
+        return None
+
+
+@app.websocket("/api/ws/chat/{live_class_id}")
+async def chat_ws(websocket: WebSocket, live_class_id: str, token: str = ""):
+    user = await authenticate_token(token)
+    if not user:
+        await websocket.close(code=4401)
+        return
+    lc = await db.live_classes.find_one({"id": live_class_id})
+    if not lc:
+        await websocket.close(code=4404)
+        return
+    await manager.connect(live_class_id, websocket, user)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            mtype = data.get("type", "message")
+            if mtype == "message":
+                text = (data.get("message") or "").strip()
+                if not text or len(text) > 500:
+                    continue
+                msg = {
+                    "id": new_id(),
+                    "live_class_id": live_class_id,
+                    "user_id": user["id"],
+                    "user_name": user["name"],
+                    "user_role": user["role"],
+                    "user_avatar": user.get("avatar_url"),
+                    "message": text,
+                    "pinned": False,
+                    "created_at": now_iso(),
+                }
+                await db.chat_messages.insert_one(dict(msg))
+                msg.pop("_id", None)
+                await manager.broadcast(live_class_id, {"type": "message", "message": msg})
+            elif mtype == "pin":
+                if user["role"] != "admin":
+                    continue
+                msg_id = data.get("message_id")
+                doc = await db.chat_messages.find_one({"id": msg_id, "live_class_id": live_class_id})
+                if not doc:
+                    continue
+                new_pinned = not doc.get("pinned", False)
+                await db.chat_messages.update_one({"id": msg_id}, {"$set": {"pinned": new_pinned}})
+                await manager.broadcast(live_class_id, {"type": "pin", "message_id": msg_id, "pinned": new_pinned})
+            elif mtype == "delete":
+                if user["role"] != "admin":
+                    continue
+                msg_id = data.get("message_id")
+                await db.chat_messages.delete_one({"id": msg_id, "live_class_id": live_class_id})
+                await manager.broadcast(live_class_id, {"type": "delete", "message_id": msg_id})
+    except WebSocketDisconnect:
+        pass
+    finally:
+        await manager.disconnect(live_class_id, websocket)
+
+
+@api.get("/chat/{live_class_id}/history")
+async def chat_history(live_class_id: str, user: dict = Depends(get_current_user)):
+    msgs = await db.chat_messages.find({"live_class_id": live_class_id}, {"_id": 0}).sort("created_at", 1).to_list(500)
+    online = len(manager.rooms.get(live_class_id, []))
+    return {"messages": msgs, "online": online}
+
+
+@api.delete("/chat/messages/{message_id}")
+async def delete_chat_message(message_id: str, user: dict = Depends(require_admin)):
+    await db.chat_messages.delete_one({"id": message_id})
+    return {"ok": True}
+
+
 
 
 app.include_router(api)

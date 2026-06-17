@@ -36,7 +36,7 @@ export default function AdminTests() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin</div>
+          <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">Admin</div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">MCQ Tests</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -47,7 +47,7 @@ export default function AdminTests() {
               {chapters.map(c => <SelectItem key={c.id} value={c.id}>{chapterLabel(c.id)}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Link to="/admin/tests/new"><Button className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="new-test-btn"><Plus className="h-4 w-4 mr-2" />New Test</Button></Link>
+          <Link to="/admin/tests/new"><Button className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="new-test-btn"><Plus className="h-4 w-4 mr-2" />New Test</Button></Link>
         </div>
       </div>
 

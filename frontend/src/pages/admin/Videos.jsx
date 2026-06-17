@@ -54,7 +54,7 @@ export default function AdminVideos() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin</div>
+          <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">Admin</div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">Videos</h1>
           <p className="text-slate-500 mt-2 text-sm">Paste a YouTube / streaming URL to publish a lesson.</p>
         </div>
@@ -66,7 +66,7 @@ export default function AdminVideos() {
               {chapters.map(c => <SelectItem key={c.id} value={c.id}>{chapterLabel(c.id)}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="new-video-btn">
+          <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="new-video-btn">
             <Plus className="h-4 w-4 mr-2" /> New
           </Button>
         </div>
@@ -118,7 +118,7 @@ export default function AdminVideos() {
               <div><Label>Order</Label><Input type="number" value={form.order} onChange={e => setForm({ ...form, order: e.target.value })} data-testid="video-order-input" /></div>
             </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white" data-testid="save-video-btn">Save</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white" data-testid="save-video-btn">Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

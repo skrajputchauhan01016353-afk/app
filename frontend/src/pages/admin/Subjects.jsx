@@ -9,8 +9,9 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import ImageUploadField from "@/components/ImageUploadField";
 
-const empty = { batch_id: "", name: "", icon: "BookOpen", color: "#1E3A8A", cover_url: "" };
+const empty = { batch_id: "", name: "", icon: "BookOpen", color: "#1D4ED8", cover_url: "" };
 
 export default function AdminSubjects() {
   const [items, setItems] = useState([]);
@@ -52,7 +53,7 @@ export default function AdminSubjects() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin</div>
+          <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">Admin</div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">Subjects</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -63,7 +64,7 @@ export default function AdminSubjects() {
               {batches.map(b => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="new-subject-btn">
+          <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="new-subject-btn">
             <Plus className="h-4 w-4 mr-2" /> New
           </Button>
         </div>
@@ -116,12 +117,17 @@ export default function AdminSubjects() {
             </div>
             <div><Label>Name</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} data-testid="subject-name-input" /></div>
             <div><Label>Icon (lucide name)</Label><Input value={form.icon} onChange={e => setForm({ ...form, icon: e.target.value })} placeholder="Atom, Sigma, Leaf..." data-testid="subject-icon-input" /></div>
-            <div><Label>Color (hex)</Label><Input value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} placeholder="#1E3A8A" data-testid="subject-color-input" /></div>
-            <div><Label>Cover URL</Label><Input value={form.cover_url} onChange={e => setForm({ ...form, cover_url: e.target.value })} data-testid="subject-cover-input" /></div>
+            <div><Label>Color (hex)</Label><Input value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} placeholder="#1D4ED8" data-testid="subject-color-input" /></div>
+            <ImageUploadField
+              label="Cover image"
+              value={form.cover_url}
+              onChange={(v) => setForm({ ...form, cover_url: v })}
+              testid="subject-cover-upload"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={save} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white" data-testid="save-subject-btn">Save</Button>
+            <Button onClick={save} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white" data-testid="save-subject-btn">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

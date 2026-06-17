@@ -10,7 +10,7 @@ import {
   ClipboardList,
   Atom,
   Users,
-  Settings2,
+  History,
   LogOut,
   Menu,
   X,
@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 const studentNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testid: "nav-dashboard" },
   { to: "/batches", label: "My Batches", icon: BookOpen, testid: "nav-batches" },
+  { to: "/recent", label: "Recently Viewed", icon: History, testid: "nav-recent" },
   { to: "/live-classes", label: "Live Classes", icon: Radio, testid: "nav-live-classes" },
 ];
 
@@ -45,9 +46,9 @@ function NavItem({ to, label, icon: Icon, testid, end }) {
       end={end}
       data-testid={testid}
       className={({ isActive }) =>
-        `relative flex items-center gap-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
+        `relative flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
           isActive
-            ? "text-[#C92A2A] bg-red-50 side-active"
+            ? "text-[#1E40AF] bg-blue-50 side-active"
             : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
         }`
       }
@@ -70,7 +71,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex">
+    <div className="min-h-screen bg-[#F5F7FB] flex">
       {/* Sidebar */}
       <aside
         data-testid="sidebar"
@@ -79,11 +80,14 @@ export default function AppLayout() {
         } lg:translate-x-0 transition-transform`}
       >
         <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <div className="h-9 w-9 rounded-md bg-[#C92A2A] grid place-items-center text-white">
+          <div className="flex items-center gap-2.5">
+            <div className="h-10 w-10 rounded-lg grr-hero-gradient grid place-items-center text-white shadow-sm">
               <GraduationCap className="h-5 w-5" />
             </div>
-            <div className="font-display font-bold tracking-tight text-lg text-slate-900">VidyaPath</div>
+            <div>
+              <div className="font-display font-extrabold tracking-tight text-[15px] leading-none text-slate-900">GYAN RISE</div>
+              <div className="text-[10px] uppercase tracking-[0.18em] text-[#F97316] font-bold mt-0.5">RANA E-LEARNING</div>
+            </div>
           </div>
           <button className="lg:hidden text-slate-500" onClick={() => setOpen(false)} data-testid="sidebar-close">
             <X className="h-5 w-5" />
@@ -147,7 +151,7 @@ export default function AppLayout() {
             <Menu className="h-5 w-5" />
           </button>
           <div className="hidden lg:block font-display text-sm uppercase tracking-widest text-slate-500">
-            {user?.role === "admin" ? "Coaching Admin Console" : "Student Learning Hub"}
+            {user?.role === "admin" ? "GYAN RISE RANA — Admin Console" : "GYAN RISE RANA — Student Portal"}
           </div>
           <div className="flex items-center gap-3">
             <div className="text-sm text-slate-600 hidden sm:block" data-testid="header-greeting">

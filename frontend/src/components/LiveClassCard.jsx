@@ -22,17 +22,17 @@ export default function LiveClassCard({ liveClass, testid = "live-card" }) {
       className="block"
       data-testid={`${testid}-${liveClass.id}`}
     >
-      <div className="bg-white border border-slate-200 rounded-lg p-4 hover:border-slate-300 transition-colors flex flex-col h-full">
+      <div className="bg-white border border-slate-200 rounded-xl p-4 hover:border-blue-300 hover:shadow-md transition-all flex flex-col h-full">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
               {isLive ? (
-                <Badge className="bg-[#C92A2A] hover:bg-[#C92A2A] text-white rounded-md inline-flex items-center gap-1.5 px-2.5 py-1">
+                <Badge className="bg-[#F97316] hover:bg-[#F97316] text-white rounded-md inline-flex items-center gap-1.5 px-2.5 py-1 font-semibold">
                   <span className="h-1.5 w-1.5 rounded-full bg-white live-dot" />
                   LIVE NOW
                 </Badge>
               ) : (
-                <Badge variant="outline" className="rounded-md border-slate-300 text-slate-700">
+                <Badge variant="outline" className="rounded-md border-blue-200 text-[#1E40AF] bg-blue-50">
                   Upcoming
                 </Badge>
               )}
@@ -49,7 +49,7 @@ export default function LiveClassCard({ liveClass, testid = "live-card" }) {
             <Calendar className="h-3.5 w-3.5" />
             {formatWhen(liveClass.start_time)}
           </span>
-          <span className="text-[#C92A2A] font-medium">Join →</span>
+          <span className="text-[#1D4ED8] font-semibold">Join →</span>
         </div>
       </div>
     </Link>

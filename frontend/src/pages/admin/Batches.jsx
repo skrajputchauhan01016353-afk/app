@@ -9,6 +9,8 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import ImageUploadField from "@/components/ImageUploadField";
+import { resolveImage } from "@/lib/apiClient";
 
 const empty = { name: "", description: "", cover_url: "", target_exam: "", year: "" };
 
@@ -55,11 +57,11 @@ export default function AdminBatches() {
     <div className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin</div>
+          <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">Admin</div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">Batches</h1>
           <p className="text-slate-500 mt-2 text-sm">Create and manage course batches.</p>
         </div>
-        <Button onClick={openNew} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="new-batch-btn">
+        <Button onClick={openNew} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="new-batch-btn">
           <Plus className="h-4 w-4 mr-2" /> New Batch
         </Button>
       </div>
@@ -81,8 +83,15 @@ export default function AdminBatches() {
               {items.map((b) => (
                 <tr key={b.id} data-testid={`batch-row-${b.id}`}>
                   <td className="p-4">
-                    <div className="font-semibold text-slate-900">{b.name}</div>
-                    <div className="text-xs text-slate-500 line-clamp-1">{b.description}</div>
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-20 rounded-md overflow-hidden bg-slate-100 flex-shrink-0">
+                        {b.cover_url ? <img src={resolveImage(b.cover_url)} alt="" className="h-full w-full object-cover" /> : <div className="h-full w-full grr-soft-gradient" />}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-slate-900">{b.name}</div>
+                        <div className="text-xs text-slate-500 line-clamp-1">{b.description}</div>
+                      </div>
+                    </div>
                   </td>
                   <td className="p-4 hidden sm:table-cell text-slate-600">{b.target_exam}</td>
                   <td className="p-4 hidden sm:table-cell text-slate-600">{b.year}</td>
@@ -110,7 +119,12 @@ export default function AdminBatches() {
           <div className="space-y-3">
             <div><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="batch-name-input" /></div>
             <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} data-testid="batch-description-input" /></div>
-            <div><Label>Cover URL</Label><Input value={form.cover_url} onChange={(e) => setForm({ ...form, cover_url: e.target.value })} data-testid="batch-cover-input" /></div>
+            <ImageUploadField
+              label="Cover image"
+              value={form.cover_url}
+              onChange={(v) => setForm({ ...form, cover_url: v })}
+              testid="batch-cover-upload"
+            />
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Target Exam</Label><Input value={form.target_exam} onChange={(e) => setForm({ ...form, target_exam: e.target.value })} placeholder="NEET / JEE / CBSE" data-testid="batch-exam-input" /></div>
               <div><Label>Year</Label><Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} data-testid="batch-year-input" /></div>
@@ -118,7 +132,7 @@ export default function AdminBatches() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} data-testid="cancel-batch-btn">Cancel</Button>
-            <Button onClick={save} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white" data-testid="save-batch-btn">Save</Button>
+            <Button onClick={save} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white" data-testid="save-batch-btn">Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

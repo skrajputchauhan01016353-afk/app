@@ -5,14 +5,14 @@ import { Library, Atom, BookOpen, Video, FileText, ClipboardList, Users, Radio, 
 import { Link } from "react-router-dom";
 
 const CARDS = [
-  { key: "batches", label: "Batches", icon: Library, color: "text-[#C92A2A]", bg: "bg-red-50", href: "/admin/batches" },
-  { key: "subjects", label: "Subjects", icon: Atom, color: "text-[#1E3A8A]", bg: "bg-blue-50", href: "/admin/subjects" },
+  { key: "batches", label: "Batches", icon: Library, color: "text-[#1D4ED8]", bg: "bg-blue-50", href: "/admin/batches" },
+  { key: "subjects", label: "Subjects", icon: Atom, color: "text-[#1E40AF]", bg: "bg-blue-50", href: "/admin/subjects" },
   { key: "chapters", label: "Chapters", icon: BookOpen, color: "text-emerald-700", bg: "bg-emerald-50", href: "/admin/chapters" },
   { key: "videos", label: "Videos", icon: Video, color: "text-amber-700", bg: "bg-amber-50", href: "/admin/videos" },
   { key: "notes", label: "Notes", icon: FileText, color: "text-purple-700", bg: "bg-purple-50", href: "/admin/notes" },
-  { key: "tests", label: "MCQ Tests", icon: ClipboardList, color: "text-[#C92A2A]", bg: "bg-red-50", href: "/admin/tests" },
+  { key: "tests", label: "MCQ Tests", icon: ClipboardList, color: "text-[#1D4ED8]", bg: "bg-blue-50", href: "/admin/tests" },
   { key: "live_classes", label: "Live Classes", icon: Radio, color: "text-pink-700", bg: "bg-pink-50", href: "/admin/live-classes" },
-  { key: "students", label: "Students", icon: Users, color: "text-[#1E3A8A]", bg: "bg-blue-50", href: "/admin/students" },
+  { key: "students", label: "Students", icon: Users, color: "text-[#1E40AF]", bg: "bg-blue-50", href: "/admin/students" },
 ];
 
 export default function AdminDashboard() {
@@ -35,8 +35,8 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-10">
       <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin Console</div>
-        <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tighter text-slate-900 mt-1">
+        <div className="text-xs uppercase tracking-[0.25em] text-[#F97316] font-semibold">GYAN RISE RANA · Admin Console</div>
+        <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tighter text-slate-900 mt-1">
           Run your coaching institute, end to end.
         </h1>
         <p className="text-slate-500 mt-3 max-w-2xl">

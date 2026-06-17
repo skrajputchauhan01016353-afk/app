@@ -93,7 +93,7 @@ export default function AdminTestEditor() {
       </Link>
 
       <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">{isNew ? "Create" : "Edit"}</div>
+        <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">{isNew ? "Create" : "Edit"}</div>
         <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">MCQ Test</h1>
       </div>
 
@@ -162,7 +162,7 @@ export default function AdminTestEditor() {
       </div>
 
       <div className="flex items-center gap-3">
-        <Button onClick={save} disabled={saving} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="save-test-btn">
+        <Button onClick={save} disabled={saving} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="save-test-btn">
           <Save className="h-4 w-4 mr-2" /> {saving ? "Saving..." : "Save Test"}
         </Button>
         <Button variant="outline" onClick={() => navigate("/admin/tests")} className="rounded-md">Cancel</Button>

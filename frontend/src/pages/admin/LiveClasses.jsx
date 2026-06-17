@@ -59,11 +59,11 @@ export default function AdminLiveClasses() {
     <div className="space-y-6">
       <div className="flex items-end justify-between">
         <div>
-          <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin</div>
+          <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">Admin</div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">Live Classes</h1>
           <p className="text-slate-500 mt-2 text-sm">Paste your YouTube Live URL after starting the stream.</p>
         </div>
-        <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="new-live-btn">
+        <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="new-live-btn">
           <Plus className="h-4 w-4 mr-2" /> Publish Live
         </Button>
       </div>
@@ -82,7 +82,7 @@ export default function AdminLiveClasses() {
                   <td className="p-4 hidden sm:table-cell text-slate-500">{new Date(lc.start_time).toLocaleString()}</td>
                   <td className="p-4">
                     {lc.status === "live" ? (
-                      <Badge className="bg-[#C92A2A] hover:bg-[#C92A2A] text-white rounded-md"><Radio className="h-3 w-3 mr-1" />LIVE</Badge>
+                      <Badge className="bg-[#F97316] hover:bg-[#F97316] text-white rounded-md"><Radio className="h-3 w-3 mr-1" />LIVE</Badge>
                     ) : (
                       <Badge variant="outline" className="rounded-md">{lc.status}</Badge>
                     )}
@@ -124,7 +124,7 @@ export default function AdminLiveClasses() {
             <div><Label>Start time</Label><Input type="datetime-local" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })} data-testid="live-start-input" /></div>
             <div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} data-testid="live-description-input" /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white" data-testid="save-live-btn">Publish</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white" data-testid="save-live-btn">Publish</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

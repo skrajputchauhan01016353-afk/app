@@ -56,7 +56,7 @@ export default function AdminChapters() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin</div>
+          <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">Admin</div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">Chapters</h1>
         </div>
         <div className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export default function AdminChapters() {
               {subjects.map(s => <SelectItem key={s.id} value={s.id}>{subjectLabel(s.id)}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="new-chapter-btn">
+          <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="new-chapter-btn">
             <Plus className="h-4 w-4 mr-2" /> New
           </Button>
         </div>
@@ -111,7 +111,7 @@ export default function AdminChapters() {
             <div><Label>Name</Label><Input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} data-testid="chapter-name-input" /></div>
             <div><Label>Order</Label><Input type="number" value={form.order} onChange={e => setForm({ ...form, order: e.target.value })} data-testid="chapter-order-input" /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white" data-testid="save-chapter-btn">Save</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white" data-testid="save-chapter-btn">Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

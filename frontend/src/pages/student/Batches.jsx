@@ -72,7 +72,7 @@ export default function StudentBatches() {
                   {!isEnrolled && (
                     <Button
                       onClick={() => enroll(b.id)}
-                      className="w-full bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white rounded-md"
+                      className="w-full bg-[#1E40AF] hover:bg-[#1E40AF]/90 text-white rounded-md"
                       data-testid={`enroll-btn-${b.id}`}
                     >
                       Enroll Now

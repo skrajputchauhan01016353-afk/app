@@ -53,7 +53,7 @@ export default function AdminNotes() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin</div>
+          <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">Admin</div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">Notes (PDFs)</h1>
           <p className="text-slate-500 mt-2 text-sm">Add a hosted PDF URL — students can read inline or download.</p>
         </div>
@@ -65,7 +65,7 @@ export default function AdminNotes() {
               {chapters.map(c => <SelectItem key={c.id} value={c.id}>{chapterLabel(c.id)}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="new-note-btn">
+          <Button onClick={() => { setEditId(null); setForm(empty); setOpen(true); }} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="new-note-btn">
             <Plus className="h-4 w-4 mr-2" /> New
           </Button>
         </div>
@@ -112,7 +112,7 @@ export default function AdminNotes() {
             <div><Label>PDF URL</Label><Input value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} data-testid="note-url-input" /></div>
             <div><Label>Description</Label><Textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} data-testid="note-description-input" /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white" data-testid="save-note-btn">Save</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button onClick={save} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white" data-testid="save-note-btn">Save</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

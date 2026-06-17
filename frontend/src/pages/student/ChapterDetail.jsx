@@ -51,7 +51,7 @@ export default function ChapterDetail() {
       </div>
 
       <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">{subject?.name}</div>
+        <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">{subject?.name}</div>
         <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">{chapter?.name}</h1>
         <div className="text-slate-500 mt-2 inline-flex items-center gap-4 text-sm">
           <span>{videos.length} videos</span>
@@ -74,7 +74,7 @@ export default function ChapterDetail() {
             <div className="bg-white border border-slate-200 rounded-lg divide-y divide-slate-100" data-testid="videos-list">
               {videos.map((v, i) => (
                 <Link key={v.id} to={`/videos/${v.id}`} className="flex items-center gap-4 p-4 hover:bg-slate-50" data-testid={`video-row-${v.id}`}>
-                  <div className="h-10 w-10 rounded-md bg-red-50 text-[#C92A2A] grid place-items-center flex-shrink-0">
+                  <div className="h-10 w-10 rounded-md bg-blue-50 text-[#1D4ED8] grid place-items-center flex-shrink-0">
                     <PlayCircle className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -98,11 +98,11 @@ export default function ChapterDetail() {
               {notes.map((n) => (
                 <a key={n.id} href={n.url} target="_blank" rel="noreferrer" className="bg-white border border-slate-200 rounded-lg p-5 hover:border-slate-300 transition-colors" data-testid={`note-card-${n.id}`}>
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-md bg-blue-50 text-[#1E3A8A] grid place-items-center"><FileText className="h-5 w-5" /></div>
+                    <div className="h-10 w-10 rounded-md bg-blue-50 text-[#1E40AF] grid place-items-center"><FileText className="h-5 w-5" /></div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-slate-900">{n.title}</div>
                       <div className="text-xs text-slate-500 mt-1 line-clamp-2">{n.description}</div>
-                      <div className="text-xs text-[#1E3A8A] mt-2 inline-flex items-center gap-1 font-medium">Open PDF <ExternalLink className="h-3 w-3" /></div>
+                      <div className="text-xs text-[#1E40AF] mt-2 inline-flex items-center gap-1 font-medium">Open PDF <ExternalLink className="h-3 w-3" /></div>
                     </div>
                   </div>
                 </a>
@@ -119,12 +119,12 @@ export default function ChapterDetail() {
               {tests.map((t) => (
                 <div key={t.id} className="bg-white border border-slate-200 rounded-lg p-5" data-testid={`test-card-${t.id}`}>
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-md bg-red-50 text-[#C92A2A] grid place-items-center"><ClipboardList className="h-5 w-5" /></div>
+                    <div className="h-10 w-10 rounded-md bg-blue-50 text-[#1D4ED8] grid place-items-center"><ClipboardList className="h-5 w-5" /></div>
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold text-slate-900">{t.title}</div>
                       <div className="text-xs text-slate-500 mt-1">{t.questions?.length || 0} questions • {t.duration_minutes} minutes</div>
                       <Link to={`/tests/${t.id}`}>
-                        <Button className="mt-3 bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md h-9" data-testid={`start-test-${t.id}`}>
+                        <Button className="mt-3 bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md h-9" data-testid={`start-test-${t.id}`}>
                           Start Test
                         </Button>
                       </Link>

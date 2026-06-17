@@ -12,7 +12,7 @@ export default function TestResult() {
   if (!data) {
     return (
       <div className="text-center text-slate-500 py-20" data-testid="no-result">
-        No result found. <button onClick={() => navigate(-1)} className="text-[#C92A2A] underline">Go back</button>
+        No result found. <button onClick={() => navigate(-1)} className="text-[#1D4ED8] underline">Go back</button>
       </div>
     );
   }
@@ -21,7 +21,7 @@ export default function TestResult() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className={`rounded-lg p-8 text-white ${passed ? "bg-gradient-to-br from-[#16A34A] to-[#1E3A8A]" : "bg-gradient-to-br from-[#C92A2A] to-[#1E3A8A]"}`} data-testid="result-hero">
+      <div className={`rounded-lg p-8 text-white ${passed ? "bg-gradient-to-br from-[#16A34A] to-[#1D4ED8]" : "bg-gradient-to-br from-[#F97316] to-[#1E40AF]"}`} data-testid="result-hero">
         <Award className="h-10 w-10 mb-3 opacity-90" />
         <div className="text-xs uppercase tracking-[0.3em] text-white/80">Result</div>
         <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mt-1">{data.test_title}</h1>
@@ -53,7 +53,7 @@ export default function TestResult() {
                           isCorrect
                             ? "border-green-200 bg-green-50 text-green-800"
                             : isSelected
-                            ? "border-red-200 bg-red-50 text-red-800"
+                            ? "border-red-200 bg-blue-50 text-red-800"
                             : "border-slate-200 text-slate-600"
                         }`}
                       >
@@ -77,7 +77,7 @@ export default function TestResult() {
       </div>
 
       <div className="flex gap-3">
-        <Button onClick={() => navigate(`/tests/${testId}`)} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="retake-btn">
+        <Button onClick={() => navigate(`/tests/${testId}`)} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="retake-btn">
           <Repeat2 className="h-4 w-4 mr-2" /> Retake Test
         </Button>
         <Button variant="outline" onClick={() => navigate(-2)} className="rounded-md" data-testid="back-to-chapter-btn">

@@ -3,6 +3,13 @@ import axios from "axios";
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 export const API_BASE = `${BACKEND_URL}/api`;
 
+/** Resolve a possibly-relative API image URL to an absolute URL. */
+export function resolveImage(url) {
+  if (!url) return url;
+  if (url.startsWith("/api/")) return BACKEND_URL + url;
+  return url;
+}
+
 export const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,

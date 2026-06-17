@@ -38,7 +38,7 @@ export default function SubjectDetail() {
       </div>
 
       <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">{batch?.target_exam}</div>
+        <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">{batch?.target_exam}</div>
         <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">
           {subject?.name}
         </h1>
@@ -56,7 +56,7 @@ export default function SubjectDetail() {
           >
             <div
               className="h-12 w-12 rounded-md grid place-items-center font-display font-bold text-white"
-              style={{ background: subject?.color || "#1E3A8A" }}
+              style={{ background: subject?.color || "#1D4ED8" }}
             >
               {String(i + 1).padStart(2, "0")}
             </div>

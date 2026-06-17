@@ -15,6 +15,7 @@ import VideoPlayer from "@/pages/student/VideoPlayer";
 import LiveClasses from "@/pages/student/LiveClasses";
 import TestPage from "@/pages/student/TestPage";
 import TestResult from "@/pages/student/TestResult";
+import RecentlyViewed from "@/pages/student/RecentlyViewed";
 import AdminDashboard from "@/pages/admin/Dashboard";
 import AdminBatches from "@/pages/admin/Batches";
 import AdminSubjects from "@/pages/admin/Subjects";
@@ -66,6 +67,7 @@ function App() {
             <Route path="/chapters/:chapterId" element={<ChapterDetail />} />
             <Route path="/videos/:videoId" element={<VideoPlayer />} />
             <Route path="/live-classes" element={<LiveClasses />} />
+            <Route path="/recent" element={<RecentlyViewed />} />
             <Route path="/tests/:testId" element={<TestPage />} />
             <Route path="/tests/:testId/result" element={<TestResult />} />
           </Route>

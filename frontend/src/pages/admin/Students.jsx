@@ -35,7 +35,7 @@ export default function AdminStudents() {
   return (
     <div className="space-y-6">
       <div>
-        <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">Admin</div>
+        <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">Admin</div>
         <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tighter text-slate-900 mt-1">Students</h1>
         <p className="text-slate-500 mt-2 text-sm">{students.length} students registered.</p>
       </div>
@@ -87,7 +87,7 @@ export default function AdminStudents() {
           </Select>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={enroll} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white" data-testid="confirm-enroll-btn">Enroll</Button>
+            <Button onClick={enroll} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white" data-testid="confirm-enroll-btn">Enroll</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

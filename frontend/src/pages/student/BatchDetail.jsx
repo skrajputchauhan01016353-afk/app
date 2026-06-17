@@ -4,6 +4,8 @@ import { api } from "@/lib/apiClient";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronRight, Atom, FlaskConical, Leaf, Sigma, Microscope, BookOpen } from "lucide-react";
+import CourseProgress from "@/components/CourseProgress";
+import { resolveImage } from "@/lib/apiClient";
 
 const ICONS = { Atom, FlaskConical, Leaf, Sigma, Microscope, BookOpen };
 
@@ -33,21 +35,24 @@ export default function BatchDetail() {
         <Link to="/batches" className="hover:text-slate-900">Batches</Link> <ChevronRight className="inline h-3 w-3" /> <span className="text-slate-900">{batch?.name}</span>
       </div>
       <div
-        className="relative overflow-hidden rounded-lg border border-slate-200"
+        className="relative overflow-hidden rounded-xl border border-slate-200"
         data-testid="batch-hero"
       >
         <div className="relative aspect-[21/9] sm:aspect-[21/7] bg-slate-900">
           {batch?.cover_url && (
-            <img src={batch.cover_url} alt={batch.name} className="absolute inset-0 h-full w-full object-cover opacity-60" />
+            <img src={resolveImage(batch.cover_url)} alt={batch.name} className="absolute inset-0 h-full w-full object-cover opacity-60" />
           )}
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/55 to-transparent" />
+          <div className="absolute inset-0 grr-hero-gradient opacity-95 mix-blend-multiply" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0B1E55]/80 via-[#0B1E55]/30 to-transparent" />
           <div className="absolute inset-0 p-6 sm:p-10 flex flex-col justify-end text-white">
-            <div className="text-xs uppercase tracking-[0.3em] text-white/70 mb-2">{batch?.target_exam} • {batch?.year}</div>
-            <h1 className="font-display text-3xl sm:text-5xl font-bold tracking-tighter">{batch?.name}</h1>
-            <p className="mt-3 max-w-2xl text-white/80">{batch?.description}</p>
+            <div className="text-xs uppercase tracking-[0.3em] text-[#FED7AA] font-semibold mb-2">{batch?.target_exam} • {batch?.year}</div>
+            <h1 className="font-display text-3xl sm:text-5xl font-extrabold tracking-tighter">{batch?.name}</h1>
+            <p className="mt-3 max-w-2xl text-white/85">{batch?.description}</p>
           </div>
         </div>
       </div>
+
+      <CourseProgress batchId={batchId} />
 
       <div>
         <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mb-5">Subjects</h2>
@@ -61,17 +66,17 @@ export default function BatchDetail() {
               const Icon = ICONS[s.icon] || BookOpen;
               return (
                 <Link to={`/subjects/${s.id}`} key={s.id} data-testid={`subject-card-${s.id}`}>
-                  <Card className="card-lift overflow-hidden bg-white border-slate-200 rounded-lg flex flex-col h-full">
+                  <Card className="card-lift overflow-hidden bg-white border-slate-200 rounded-xl flex flex-col h-full">
                     <div className="relative aspect-[16/9] bg-slate-100">
                       {s.cover_url ? (
-                        <img src={s.cover_url} alt={s.name} className="h-full w-full object-cover" />
+                        <img src={resolveImage(s.cover_url)} alt={s.name} className="h-full w-full object-cover" />
                       ) : (
-                        <div className="h-full w-full" style={{ background: s.color || "#1E3A8A" }} />
+                        <div className="h-full w-full" style={{ background: s.color || "#1D4ED8" }} />
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
                       <div
-                        className="absolute top-3 left-3 h-10 w-10 rounded-md grid place-items-center text-white"
-                        style={{ background: s.color || "#1E3A8A" }}
+                        className="absolute top-3 left-3 h-10 w-10 rounded-lg grid place-items-center text-white shadow"
+                        style={{ background: s.color || "#1D4ED8" }}
                       >
                         <Icon className="h-5 w-5" />
                       </div>

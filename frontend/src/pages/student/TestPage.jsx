@@ -61,7 +61,7 @@ export default function TestPage() {
   if (!started) {
     return (
       <div className="max-w-2xl mx-auto bg-white border border-slate-200 rounded-lg p-8" data-testid="test-intro">
-        <div className="text-xs uppercase tracking-[0.25em] text-[#C92A2A]">MCQ Test</div>
+        <div className="text-xs uppercase tracking-[0.25em] text-[#1D4ED8]">MCQ Test</div>
         <h1 className="font-display text-3xl font-bold tracking-tight text-slate-900 mt-1">{test.title}</h1>
         <p className="text-slate-500 mt-2">{test.description}</p>
         <div className="mt-6 grid grid-cols-2 gap-4">
@@ -80,7 +80,7 @@ export default function TestPage() {
           <li>You can revisit questions before submitting.</li>
         </ul>
         <Button
-          className="mt-8 w-full bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md h-11"
+          className="mt-8 w-full bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md h-11"
           onClick={() => { setStarted(true); setStartTs(Date.now()); }}
           data-testid="start-test-btn"
         >
@@ -99,7 +99,7 @@ export default function TestPage() {
       <div className="lg:col-span-2 space-y-4">
         <div className="flex items-center justify-between">
           <div className="text-xs uppercase tracking-[0.25em] text-slate-500">Question {idx + 1} of {test.questions.length}</div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-red-50 text-[#C92A2A] font-mono font-semibold" data-testid="timer">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-blue-50 text-[#1D4ED8] font-mono font-semibold" data-testid="timer">
             <Clock className="h-4 w-4" /> {mm}:{ss}
           </div>
         </div>
@@ -116,12 +116,12 @@ export default function TestPage() {
                   onClick={() => setAnswers({ ...answers, [idx]: i })}
                   className={`w-full text-left p-4 border rounded-md transition-colors flex items-center gap-3 ${
                     isSelected
-                      ? "border-[#C92A2A] bg-red-50 text-[#C92A2A] font-medium"
+                      ? "border-[#1D4ED8] bg-blue-50 text-[#1D4ED8] font-medium"
                       : "border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-700"
                   }`}
                   data-testid={`option-${idx}-${i}`}
                 >
-                  <span className={`h-6 w-6 rounded-full grid place-items-center text-xs font-semibold ${isSelected ? "bg-[#C92A2A] text-white" : "bg-slate-100 text-slate-600"}`}>
+                  <span className={`h-6 w-6 rounded-full grid place-items-center text-xs font-semibold ${isSelected ? "bg-[#1D4ED8] text-white" : "bg-slate-100 text-slate-600"}`}>
                     {String.fromCharCode(65 + i)}
                   </span>
                   <span className="flex-1">{opt}</span>
@@ -137,11 +137,11 @@ export default function TestPage() {
             <ChevronLeft className="h-4 w-4 mr-1" /> Previous
           </Button>
           {idx < test.questions.length - 1 ? (
-            <Button onClick={() => setIdx((i) => i + 1)} className="bg-[#1E3A8A] hover:bg-[#1E3A8A]/90 text-white rounded-md" data-testid="next-question-btn">
+            <Button onClick={() => setIdx((i) => i + 1)} className="bg-[#1E40AF] hover:bg-[#1E40AF]/90 text-white rounded-md" data-testid="next-question-btn">
               Next <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={submitting} className="bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="submit-test-btn">
+            <Button onClick={handleSubmit} disabled={submitting} className="bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="submit-test-btn">
               {submitting ? "Submitting..." : "Submit Test"}
             </Button>
           )}
@@ -160,7 +160,7 @@ export default function TestPage() {
                 onClick={() => setIdx(i)}
                 className={`h-9 rounded-md text-xs font-semibold ${
                   current
-                    ? "bg-[#C92A2A] text-white"
+                    ? "bg-[#1D4ED8] text-white"
                     : ans
                     ? "bg-green-100 text-green-700"
                     : "bg-slate-100 text-slate-600"
@@ -173,7 +173,7 @@ export default function TestPage() {
           })}
         </div>
         <div className="text-xs text-slate-500 mt-4">Answered: {answeredCount} / {test.questions.length}</div>
-        <Button onClick={handleSubmit} disabled={submitting} className="mt-4 w-full bg-[#C92A2A] hover:bg-[#A52A2A] text-white rounded-md" data-testid="palette-submit-btn">
+        <Button onClick={handleSubmit} disabled={submitting} className="mt-4 w-full bg-[#1D4ED8] hover:bg-[#1E40AF] text-white rounded-md" data-testid="palette-submit-btn">
           {submitting ? "Submitting..." : "Submit Test"}
         </Button>
       </aside>
