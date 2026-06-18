@@ -4,8 +4,7 @@ import { api, toYouTubeEmbed } from "@/lib/apiClient";
 import { useAuth } from "@/context/AuthContext";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Radio, Calendar, ExternalLink } from "lucide-react";
+import { Radio, Calendar } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
 import VideoWatermark from "@/components/VideoWatermark";
 
@@ -54,8 +53,10 @@ export default function LiveClasses() {
                     key={active.id}
                     src={toYouTubeEmbed(active.youtube_url)}
                     title={active.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
                     allowFullScreen
+                    referrerPolicy="no-referrer"
+                    sandbox="allow-scripts allow-same-origin allow-presentation"
                     className="absolute inset-0 h-full w-full"
                   />
                   <VideoWatermark name={user?.name} email={user?.email} />
@@ -75,11 +76,6 @@ export default function LiveClasses() {
                     <h2 className="font-display text-2xl font-bold tracking-tight text-slate-900">{active.title}</h2>
                     <p className="text-slate-500 mt-2 text-sm max-w-2xl">{active.description}</p>
                   </div>
-                  <a href={active.youtube_url} target="_blank" rel="noreferrer">
-                    <Button variant="outline" className="rounded-lg" data-testid="open-in-youtube">
-                      Open in YouTube <ExternalLink className="h-3.5 w-3.5 ml-1.5" />
-                    </Button>
-                  </a>
                 </div>
 
                 {/* Sessions selector */}

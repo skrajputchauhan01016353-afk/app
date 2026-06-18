@@ -1,9 +1,11 @@
 import "@/App.css";
 import "@/index.css";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
 import Login from "@/pages/Login";
+import AdminLogin from "@/pages/AdminLogin";
 import Register from "@/pages/Register";
 import AppLayout from "@/components/AppLayout";
 import StudentDashboard from "@/pages/student/Dashboard";
@@ -29,6 +31,7 @@ import AdminStudents from "@/pages/admin/Students";
 
 function Guard({ children, role }) {
   const { user } = useAuth();
+  const location = useLocation();
   if (user === null) {
     return (
       <div className="min-h-screen grid place-items-center text-slate-400">
@@ -36,8 +39,9 @@ function Guard({ children, role }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <Navigate to={user.role === "admin" ? "/admin" : "/"} replace />;
+  const onAdminPath = location.pathname.startsWith("/admin");
+  if (!user) return <Navigate to={onAdminPath ? "/admin-login" : "/login"} replace />;
+  if (role && user.role !== role) return <Navigate to={user.role === "admin" ? "/admin" : "/dashboard"} replace />;
   return children;
 }
 
@@ -49,6 +53,38 @@ function RootRedirect() {
 }
 
 function App() {
+  useEffect(() => {
+    // App-wide content protection
+    const isInteractiveTarget = (el) => {
+      if (!el) return false;
+      const tag = (el.tagName || "").toLowerCase();
+      return tag === "input" || tag === "textarea" || el.isContentEditable;
+    };
+    const onContext = (e) => {
+      if (!isInteractiveTarget(e.target)) e.preventDefault();
+    };
+    const onDragStart = (e) => {
+      const tag = (e.target?.tagName || "").toLowerCase();
+      if (tag === "img" || tag === "video" || tag === "iframe") e.preventDefault();
+    };
+    const onKey = (e) => {
+      // Block save (Ctrl/Cmd+S), select-all on the page (allow inside inputs), and view-source shortcuts
+      const k = e.key?.toLowerCase();
+      if ((e.ctrlKey || e.metaKey) && ["s", "p"].includes(k)) {
+        if (!isInteractiveTarget(e.target)) e.preventDefault();
+      }
+      // Block F12 / DevTools-ish keys is unreliable across browsers; intentionally NOT trying to block DevTools
+    };
+    document.addEventListener("contextmenu", onContext, true);
+    document.addEventListener("dragstart", onDragStart, true);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("contextmenu", onContext, true);
+      document.removeEventListener("dragstart", onDragStart, true);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
@@ -56,6 +92,7 @@ function App() {
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
           <Route path="/register" element={<Register />} />
 
           {/* Student */}
