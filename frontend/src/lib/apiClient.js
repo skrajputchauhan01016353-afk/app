@@ -43,7 +43,7 @@ export function formatApiError(err) {
   return String(detail);
 }
 
-// YouTube URL → privacy-enhanced embed URL (no related videos, no branding, no clicks-out)
+// YouTube URL → embed URL
 export function toYouTubeEmbed(url) {
   if (!url) return "";
   try {
@@ -54,17 +54,7 @@ export function toYouTubeEmbed(url) {
     else if (u.pathname.includes("/live/")) id = u.pathname.split("/live/")[1];
     else if (u.pathname.includes("/embed/")) id = u.pathname.split("/embed/")[1];
     if (!id) return url;
-    const params = new URLSearchParams({
-      rel: "0",              // no related videos at end
-      modestbranding: "1",   // hide YT logo as much as allowed
-      iv_load_policy: "3",   // no video annotations
-      playsinline: "1",      // inline on iOS
-      disablekb: "1",        // disable keyboard shortcuts (incl. share)
-      fs: "1",               // allow fullscreen inside our player
-      controls: "1",
-    });
-    // youtube-nocookie domain disables tracking + reduces external suggestion overlays
-    return `https://www.youtube-nocookie.com/embed/${id}?${params.toString()}`;
+    return `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1`;
   } catch {
     return url;
   }

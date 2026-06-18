@@ -53,10 +53,8 @@ export default function LiveClasses() {
                     key={active.id}
                     src={toYouTubeEmbed(active.youtube_url)}
                     title={active.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
-                    referrerPolicy="no-referrer"
-                    sandbox="allow-scripts allow-same-origin allow-presentation"
                     className="absolute inset-0 h-full w-full"
                   />
                   <VideoWatermark name={user?.name} email={user?.email} />

@@ -67,10 +67,8 @@ export default function VideoPlayer() {
             <iframe
               src={embed}
               title={video.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
-              referrerPolicy="no-referrer"
-              sandbox="allow-scripts allow-same-origin allow-presentation"
               className="absolute inset-0 h-full w-full"
             />
             {/* Dynamic moving watermark — anti-piracy */}
