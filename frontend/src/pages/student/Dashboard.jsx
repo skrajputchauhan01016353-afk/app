@@ -2,10 +2,11 @@ import React, { useEffect, useState } from "react";
 import { api } from "@/lib/apiClient";
 import { useAuth } from "@/context/AuthContext";
 import BatchCard from "@/components/BatchCard";
+import BuyButton from "@/components/BuyButton";
 import LiveClassCard from "@/components/LiveClassCard";
 import CourseProgress from "@/components/CourseProgress";
 import { Link } from "react-router-dom";
-import { FileText, ClipboardList, PlayCircle, ArrowRight, Sparkles, Flame, Zap } from "lucide-react";
+import { FileText, ClipboardList, PlayCircle, ArrowRight, Sparkles, Flame, Zap, ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -25,18 +26,24 @@ export default function StudentDashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [continueWatching, setContinueWatching] = useState([]);
+  const [allBatches, setAllBatches] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const loadAll = async () => {
+    const [{ data: d }, { data: cw }, { data: ab }] = await Promise.all([
+      api.get("/dashboard/student"),
+      api.get("/progress/continue-watching"),
+      api.get("/batches"),
+    ]);
+    setData(d);
+    setContinueWatching(cw);
+    setAllBatches(ab);
+  };
 
   useEffect(() => {
     (async () => {
-      try {
-        const [{ data: d }, { data: cw }] = await Promise.all([
-          api.get("/dashboard/student"),
-          api.get("/progress/continue-watching"),
-        ]);
-        setData(d);
-        setContinueWatching(cw);
-      } finally { setLoading(false); }
+      try { await loadAll(); }
+      finally { setLoading(false); }
     })();
   }, []);
 
@@ -152,22 +159,48 @@ export default function StudentDashboard() {
         </section>
       )}
 
-      {/* My Batches */}
+      {/* My Batches (Purchased) */}
       <section>
         <SectionHeader
-          title="My Batches"
+          title="Purchased Batches"
+          kicker="Your library"
           action={<Link to="/batches" className="text-sm text-[#1D4ED8] font-semibold hover:underline">All batches →</Link>}
         />
         {batches.length === 0 ? (
-          <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-500">
-            You're not enrolled in any batch yet.
+          <div className="bg-white border border-dashed border-slate-300 rounded-xl p-10 text-center text-slate-500" data-testid="purchased-empty">
+            You haven't purchased any batch yet. Scroll down to explore available batches.
           </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="my-batches-grid">
-            {batches.slice(0, 3).map((b) => <BatchCard key={b.id} batch={b} testid="dashboard-batch" />)}
+            {batches.slice(0, 6).map((b) => <BatchCard key={b.id} batch={b} testid="purchased-batch" />)}
           </div>
         )}
       </section>
+
+      {/* Available batches (not purchased yet) */}
+      {(() => {
+        const available = allBatches.filter(b => !b.is_enrolled);
+        if (available.length === 0) return null;
+        return (
+          <section>
+            <SectionHeader
+              title="Explore More Batches"
+              kicker="Unlock more content"
+              action={<Link to="/batches" className="text-sm text-[#F97316] font-semibold hover:underline inline-flex items-center gap-1"><ShoppingCart className="h-3.5 w-3.5" /> Browse all →</Link>}
+            />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="available-batches-grid">
+              {available.slice(0, 3).map((b) => (
+                <BatchCard
+                  key={b.id}
+                  batch={b}
+                  testid="available-batch"
+                  footer={<BuyButton batch={b} onSuccess={loadAll} />}
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Latest notes + tests */}
       <section className="grid lg:grid-cols-2 gap-6">

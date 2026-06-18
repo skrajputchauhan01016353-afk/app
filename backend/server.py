@@ -92,6 +92,8 @@ class BatchIn(BaseModel):
     cover_url: Optional[str] = None
     target_exam: Optional[str] = None
     year: Optional[int] = None
+    price: float = 0  # 0 means free
+    currency: str = "INR"
 
 
 class SubjectIn(BaseModel):
@@ -143,9 +145,11 @@ class LiveClassIn(BaseModel):
     title: str
     batch_id: str
     subject_id: Optional[str] = None
+    chapter_id: Optional[str] = None
     youtube_url: str
     start_time: str
     description: str = ""
+    recording_url: Optional[str] = None
 
 
 class EnrollIn(BaseModel):
@@ -261,7 +265,15 @@ async def me(user: dict = Depends(get_current_user)):
 # ---------- Batches ----------
 @api.get("/batches")
 async def list_batches(user: dict = Depends(get_current_user)):
-    return await db.batches.find({}, {"_id": 0}).to_list(1000)
+    batches = await db.batches.find({}, {"_id": 0}).to_list(1000)
+    enrolled = set()
+    async for e in db.enrollments.find({"student_id": user["id"]}, {"_id": 0, "batch_id": 1}):
+        enrolled.add(e["batch_id"])
+    for b in batches:
+        b["is_enrolled"] = b["id"] in enrolled
+        b.setdefault("price", 0)
+        b.setdefault("currency", "INR")
+    return batches
 
 
 @api.post("/batches")
@@ -297,6 +309,9 @@ async def get_batch(batch_id: str, user: dict = Depends(get_current_user)):
     b = await db.batches.find_one({"id": batch_id}, {"_id": 0})
     if not b:
         raise HTTPException(status_code=404, detail="Batch not found")
+    b["is_enrolled"] = bool(await db.enrollments.find_one({"student_id": user["id"], "batch_id": batch_id}))
+    b.setdefault("price", 0)
+    b.setdefault("currency", "INR")
     return b
 
 
@@ -576,6 +591,42 @@ async def delete_live_class(lc_id: str, user: dict = Depends(require_admin)):
     return {"ok": True}
 
 
+@api.post("/live-classes/{lc_id}/publish-recording")
+async def publish_recording(lc_id: str, user: dict = Depends(require_admin)):
+    """Convert a live class' recording_url into a Video attached to its chapter."""
+    lc = await db.live_classes.find_one({"id": lc_id}, {"_id": 0})
+    if not lc:
+        raise HTTPException(status_code=404, detail="Live class not found")
+    if not lc.get("chapter_id"):
+        raise HTTPException(status_code=400, detail="Live class has no chapter_id — set it first")
+    if not lc.get("recording_url"):
+        raise HTTPException(status_code=400, detail="No recording_url set on live class")
+    # Already published?
+    if lc.get("recording_video_id"):
+        existing = await db.videos.find_one({"id": lc["recording_video_id"]}, {"_id": 0})
+        if existing:
+            return {"ok": True, "already": True, "video": existing}
+    # Count existing videos in chapter for ordering
+    count = await db.videos.count_documents({"chapter_id": lc["chapter_id"]})
+    video = {
+        "id": new_id(),
+        "chapter_id": lc["chapter_id"],
+        "title": f"[Recording] {lc['title']}",
+        "description": lc.get("description") or "Recorded live class session.",
+        "url": lc["recording_url"],
+        "duration_seconds": lc.get("duration_seconds", 0),
+        "order": count,
+        "source_live_class_id": lc_id,
+        "created_at": now_iso(),
+    }
+    await db.videos.insert_one(dict(video))
+    await db.live_classes.update_one({"id": lc_id}, {"$set": {"recording_video_id": video["id"]}})
+    video.pop("_id", None)
+    return {"ok": True, "video": video}
+
+
+
+
 # ---------- Enrollments ----------
 @api.get("/enrollments/me")
 async def my_enrollments(user: dict = Depends(get_current_user)):
@@ -597,6 +648,12 @@ async def enroll(body: EnrollIn, user: dict = Depends(require_admin)):
 
 @api.post("/enrollments/self/{batch_id}")
 async def self_enroll(batch_id: str, user: dict = Depends(get_current_user)):
+    batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    # Block self-enroll for paid batches — must go through /payments/checkout
+    if (batch.get("price") or 0) > 0:
+        raise HTTPException(status_code=402, detail="This batch is paid. Please complete payment to enroll.")
     existing = await db.enrollments.find_one({"student_id": user["id"], "batch_id": batch_id})
     if existing:
         return {"ok": True, "already": True}
@@ -604,6 +661,44 @@ async def self_enroll(batch_id: str, user: dict = Depends(get_current_user)):
     await db.enrollments.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+
+# ---------- Payments (Razorpay-ready, MOCKED until keys are added) ----------
+@api.post("/payments/checkout/{batch_id}")
+async def payments_checkout(batch_id: str, user: dict = Depends(get_current_user)):
+    """Initiate checkout for a paid batch. CURRENTLY MOCKED — auto-marks paid and enrolls.
+    Architecture-ready for Razorpay: replace this body with razorpay.Order.create(...) and
+    return {order_id, amount, currency, key_id}. Verify webhook on /payments/webhook
+    then call _create_enrollment().
+    """
+    batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    existing = await db.enrollments.find_one({"student_id": user["id"], "batch_id": batch_id})
+    if existing:
+        return {"ok": True, "already": True, "mock": True}
+    payment = {
+        "id": new_id(),
+        "user_id": user["id"],
+        "batch_id": batch_id,
+        "amount": batch.get("price", 0),
+        "currency": batch.get("currency", "INR"),
+        "status": "paid",  # MOCKED
+        "provider": "mock",
+        "provider_order_id": f"mock_{new_id()[:12]}",
+        "created_at": now_iso(),
+    }
+    await db.payments.insert_one(dict(payment))
+    enrollment = {"id": new_id(), "student_id": user["id"], "batch_id": batch_id, "enrolled_at": now_iso(), "payment_id": payment["id"]}
+    await db.enrollments.insert_one(dict(enrollment))
+    payment.pop("_id", None)
+    enrollment.pop("_id", None)
+    return {"ok": True, "mock": True, "payment": payment, "enrollment": enrollment}
+
+
+@api.get("/payments/me")
+async def my_payments(user: dict = Depends(get_current_user)):
+    return await db.payments.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(100)
 
 
 @api.get("/enrollments")
@@ -978,6 +1073,8 @@ async def seed_content():
             "cover_url": "https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&q=85&w=1200",
             "target_exam": "NEET",
             "year": 2027,
+            "price": 4999,
+            "currency": "INR",
         },
         {
             "name": "JEE 2027 - Arjuna",
@@ -985,6 +1082,8 @@ async def seed_content():
             "cover_url": "https://images.unsplash.com/photo-1635372722656-389f87a941b7?auto=format&fit=crop&q=85&w=1200",
             "target_exam": "JEE",
             "year": 2027,
+            "price": 5999,
+            "currency": "INR",
         },
         {
             "name": "Class 10 Foundation",
@@ -992,6 +1091,8 @@ async def seed_content():
             "cover_url": "https://images.pexels.com/photos/12732215/pexels-photo-12732215.jpeg?auto=format&fit=crop&q=85&w=1200",
             "target_exam": "CBSE",
             "year": 2026,
+            "price": 0,
+            "currency": "INR",
         },
     ]
 
