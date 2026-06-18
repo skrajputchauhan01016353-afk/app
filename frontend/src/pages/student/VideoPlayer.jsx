@@ -6,7 +6,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, PlayCircle, ListVideo, ShieldCheck } from "lucide-react";
 import VideoWatermark from "@/components/VideoWatermark";
-import YouTubeShield from "@/components/YouTubeShield";
 
 export default function VideoPlayer() {
   const { videoId } = useParams();
@@ -65,15 +64,21 @@ export default function VideoPlayer() {
             data-testid="video-player-frame"
             onContextMenu={(e) => e.preventDefault()}
           >
-            <YouTubeShield>
-              <iframe
-                src={embed}
-                title={video.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="absolute inset-0 h-full w-full"
-              />
-            </YouTubeShield>
+            <iframe
+              src={embed}
+              title={video.title}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              className="absolute inset-0 h-full w-full"
+            />
+            {/* Title-bar click trap — see LiveClasses.jsx for rationale */}
+            <div
+              aria-hidden="true"
+              className="absolute top-0 left-0 right-0 h-11 z-10"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              data-testid="yt-title-shield"
+            />
             {/* Dynamic moving watermark — anti-piracy */}
             <VideoWatermark name={user?.name} email={user?.email} />
           </div>

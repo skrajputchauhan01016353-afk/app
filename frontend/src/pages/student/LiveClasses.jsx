@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { Radio, Calendar } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
 import VideoWatermark from "@/components/VideoWatermark";
-import YouTubeShield from "@/components/YouTubeShield";
 
 function formatWhen(iso) {
   try { return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }); } catch { return iso; }
@@ -50,16 +49,24 @@ export default function LiveClasses() {
             {active && (
               <>
                 <div className="relative aspect-video bg-black rounded-xl overflow-hidden ring-1 ring-slate-200 no-context" data-testid="live-player" onContextMenu={(e)=>e.preventDefault()}>
-                  <YouTubeShield>
-                    <iframe
-                      key={active.id}
-                      src={toYouTubeEmbed(active.youtube_url)}
-                      title={active.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                      className="absolute inset-0 h-full w-full"
-                    />
-                  </YouTubeShield>
+                  <iframe
+                    key={active.id}
+                    src={toYouTubeEmbed(active.youtube_url)}
+                    title={active.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="absolute inset-0 h-full w-full"
+                  />
+                  {/* Title-bar click trap — discourages "Watch on YouTube" navigation
+                      without touching iframe sizing/playback. Stays well above the
+                      controls bar so play/pause, progress and fullscreen all work. */}
+                  <div
+                    aria-hidden="true"
+                    className="absolute top-0 left-0 right-0 h-11 z-10"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                    data-testid="yt-title-shield"
+                  />
                   <VideoWatermark name={user?.name} email={user?.email} />
                 </div>
                 <div className="flex items-start justify-between gap-4">
