@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Radio, Calendar } from "lucide-react";
 import LiveChat from "@/components/LiveChat";
 import VideoWatermark from "@/components/VideoWatermark";
+import YouTubeShield from "@/components/YouTubeShield";
 
 function formatWhen(iso) {
   try { return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }); } catch { return iso; }
@@ -49,14 +50,16 @@ export default function LiveClasses() {
             {active && (
               <>
                 <div className="relative aspect-video bg-black rounded-xl overflow-hidden ring-1 ring-slate-200 no-context" data-testid="live-player" onContextMenu={(e)=>e.preventDefault()}>
-                  <iframe
-                    key={active.id}
-                    src={toYouTubeEmbed(active.youtube_url)}
-                    title={active.title}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                    className="absolute inset-0 h-full w-full"
-                  />
+                  <YouTubeShield>
+                    <iframe
+                      key={active.id}
+                      src={toYouTubeEmbed(active.youtube_url)}
+                      title={active.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="absolute inset-0 h-full w-full"
+                    />
+                  </YouTubeShield>
                   <VideoWatermark name={user?.name} email={user?.email} />
                 </div>
                 <div className="flex items-start justify-between gap-4">

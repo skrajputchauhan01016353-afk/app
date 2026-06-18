@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, PlayCircle, ListVideo, ShieldCheck } from "lucide-react";
 import VideoWatermark from "@/components/VideoWatermark";
+import YouTubeShield from "@/components/YouTubeShield";
 
 export default function VideoPlayer() {
   const { videoId } = useParams();
@@ -64,13 +65,15 @@ export default function VideoPlayer() {
             data-testid="video-player-frame"
             onContextMenu={(e) => e.preventDefault()}
           >
-            <iframe
-              src={embed}
-              title={video.title}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="absolute inset-0 h-full w-full"
-            />
+            <YouTubeShield>
+              <iframe
+                src={embed}
+                title={video.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 h-full w-full"
+              />
+            </YouTubeShield>
             {/* Dynamic moving watermark — anti-piracy */}
             <VideoWatermark name={user?.name} email={user?.email} />
           </div>

@@ -75,13 +75,43 @@ function App() {
       }
       // Block F12 / DevTools-ish keys is unreliable across browsers; intentionally NOT trying to block DevTools
     };
+
+    // Block any same-origin attempt to open youtube.com URLs in a new tab.
+    // Note: cross-origin iframe popups (YouTube's own logo click) can NOT be intercepted by us;
+    // this is a defense layer for our own anchors and any wrapper code.
+    const isYouTubeUrl = (u) => {
+      try {
+        const host = new URL(u, window.location.origin).hostname.toLowerCase();
+        return host.endsWith("youtube.com") || host.endsWith("youtu.be") || host.endsWith("youtube-nocookie.com");
+      } catch { return false; }
+    };
+    const origOpen = window.open;
+    window.open = function patchedOpen(url, ...rest) {
+      if (typeof url === "string" && isYouTubeUrl(url)) return null;
+      return origOpen.call(window, url, ...rest);
+    };
+    const onClickCapture = (e) => {
+      // Stop our own anchors that point to youtube.com from navigating
+      let el = e.target;
+      while (el && el !== document.body) {
+        if (el.tagName === "A" && el.href && isYouTubeUrl(el.href)) {
+          e.preventDefault(); e.stopPropagation();
+          return;
+        }
+        el = el.parentElement;
+      }
+    };
+
     document.addEventListener("contextmenu", onContext, true);
     document.addEventListener("dragstart", onDragStart, true);
     document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onClickCapture, true);
     return () => {
       document.removeEventListener("contextmenu", onContext, true);
       document.removeEventListener("dragstart", onDragStart, true);
       document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onClickCapture, true);
+      window.open = origOpen;
     };
   }, []);
 
