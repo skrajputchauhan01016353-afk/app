@@ -16,6 +16,7 @@ import {
   X,
   Library,
   Video as VideoIcon,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -36,6 +37,7 @@ const adminNav = [
   { to: "/admin/notes", label: "Notes", icon: FileText, testid: "nav-admin-notes" },
   { to: "/admin/tests", label: "MCQ Tests", icon: ClipboardList, testid: "nav-admin-tests" },
   { to: "/admin/live-classes", label: "Live Classes", icon: Radio, testid: "nav-admin-live" },
+  { to: "/admin/notifications", label: "Notifications", icon: Bell, testid: "nav-admin-notifications" },
   { to: "/admin/students", label: "Students", icon: Users, testid: "nav-admin-students" },
 ];
 

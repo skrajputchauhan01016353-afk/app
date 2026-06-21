@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { api, setToken, formatApiError } from "@/lib/apiClient";
+import { requestFcmToken } from "@/lib/firebaseMessaging";
 
 const AuthContext = createContext(null);
 
@@ -21,6 +22,23 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     refreshMe();
   }, [refreshMe]);
+
+  useEffect(() => {
+    if (!user || user === false) return;
+    (async () => {
+      try {
+        const token = await requestFcmToken();
+        if (!token) return;
+        await api.post("/auth/fcm-token", {
+          token,
+          platform: "web",
+          user_agent: navigator.userAgent,
+        });
+      } catch (e) {
+        console.warn("FCM token registration failed", e);
+      }
+    })();
+  }, [user]);
 
   const login = async (email, password) => {
     setError("");

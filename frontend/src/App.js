@@ -1,9 +1,9 @@
 import "@/App.css";
 import "@/index.css";
 import { useEffect } from "react";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster, toast } from "@/components/ui/sonner";
 import Login from "@/pages/Login";
 import AdminLogin from "@/pages/AdminLogin";
 import Register from "@/pages/Register";
@@ -15,6 +15,7 @@ import SubjectDetail from "@/pages/student/SubjectDetail";
 import ChapterDetail from "@/pages/student/ChapterDetail";
 import VideoPlayer from "@/pages/student/VideoPlayer";
 import LiveClasses from "@/pages/student/LiveClasses";
+import BlockedAccess from "@/pages/student/BlockedAccess";
 import TestPage from "@/pages/student/TestPage";
 import TestResult from "@/pages/student/TestResult";
 import RecentlyViewed from "@/pages/student/RecentlyViewed";
@@ -27,6 +28,7 @@ import AdminNotes from "@/pages/admin/Notes";
 import AdminTests from "@/pages/admin/Tests";
 import AdminTestEditor from "@/pages/admin/TestEditor";
 import AdminLiveClasses from "@/pages/admin/LiveClasses";
+import AdminNotifications from "@/pages/admin/Notifications";
 import AdminStudents from "@/pages/admin/Students";
 
 function Guard({ children, role }) {
@@ -50,6 +52,71 @@ function RootRedirect() {
   if (user === null) return null;
   if (!user) return <Navigate to="/login" replace />;
   return <Navigate to={user.role === "admin" ? "/admin" : "/dashboard"} replace />;
+}
+
+function StudentNavigationLock() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!user || user.role !== "student") return undefined;
+
+    const isYouTubeUrl = (u) => {
+      try {
+        const host = new URL(u, window.location.origin).hostname.toLowerCase();
+        return host.endsWith("youtube.com") || host.endsWith("youtu.be") || host.endsWith("youtube-nocookie.com");
+      } catch {
+        return false;
+      }
+    };
+
+    const isExternalLink = (u) => {
+      try {
+        const url = new URL(u, window.location.href);
+        return url.origin !== window.location.origin;
+      } catch {
+        return false;
+      }
+    };
+
+    const blockStudentNavigation = () => {
+      toast.error("External navigation is restricted for student accounts.");
+      if (location.pathname !== "/blocked-access") navigate("/blocked-access");
+    };
+
+    const origOpen = window.open;
+    window.open = function patchedOpen(url, ...rest) {
+      if (typeof url === "string" && (isYouTubeUrl(url) || isExternalLink(url))) {
+        blockStudentNavigation();
+        return null;
+      }
+      return origOpen.call(window, url, ...rest);
+    };
+
+    const onClickCapture = (e) => {
+      let el = e.target;
+      while (el && el !== document.body) {
+        if (el.tagName === "A" && el.href) {
+          if (isYouTubeUrl(el.href) || isExternalLink(el.href)) {
+            e.preventDefault();
+            e.stopPropagation();
+            blockStudentNavigation();
+            return;
+          }
+        }
+        el = el.parentElement;
+      }
+    };
+
+    document.addEventListener("click", onClickCapture, true);
+    return () => {
+      document.removeEventListener("click", onClickCapture, true);
+      window.open = origOpen;
+    };
+  }, [user, navigate, location.pathname]);
+
+  return null;
 }
 
 function App() {
@@ -76,42 +143,13 @@ function App() {
       // Block F12 / DevTools-ish keys is unreliable across browsers; intentionally NOT trying to block DevTools
     };
 
-    // Block any same-origin attempt to open youtube.com URLs in a new tab.
-    // Note: cross-origin iframe popups (YouTube's own logo click) can NOT be intercepted by us;
-    // this is a defense layer for our own anchors and any wrapper code.
-    const isYouTubeUrl = (u) => {
-      try {
-        const host = new URL(u, window.location.origin).hostname.toLowerCase();
-        return host.endsWith("youtube.com") || host.endsWith("youtu.be") || host.endsWith("youtube-nocookie.com");
-      } catch { return false; }
-    };
-    const origOpen = window.open;
-    window.open = function patchedOpen(url, ...rest) {
-      if (typeof url === "string" && isYouTubeUrl(url)) return null;
-      return origOpen.call(window, url, ...rest);
-    };
-    const onClickCapture = (e) => {
-      // Stop our own anchors that point to youtube.com from navigating
-      let el = e.target;
-      while (el && el !== document.body) {
-        if (el.tagName === "A" && el.href && isYouTubeUrl(el.href)) {
-          e.preventDefault(); e.stopPropagation();
-          return;
-        }
-        el = el.parentElement;
-      }
-    };
-
     document.addEventListener("contextmenu", onContext, true);
     document.addEventListener("dragstart", onDragStart, true);
     document.addEventListener("keydown", onKey);
-    document.addEventListener("click", onClickCapture, true);
     return () => {
       document.removeEventListener("contextmenu", onContext, true);
       document.removeEventListener("dragstart", onDragStart, true);
       document.removeEventListener("keydown", onKey);
-      document.removeEventListener("click", onClickCapture, true);
-      window.open = origOpen;
     };
   }, []);
 
@@ -119,6 +157,7 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <Toaster richColors position="top-right" />
+        <StudentNavigationLock />
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login" element={<Login />} />
@@ -137,6 +176,7 @@ function App() {
             <Route path="/recent" element={<RecentlyViewed />} />
             <Route path="/tests/:testId" element={<TestPage />} />
             <Route path="/tests/:testId/result" element={<TestResult />} />
+            <Route path="/blocked-access" element={<BlockedAccess />} />
           </Route>
 
           {/* Admin */}
@@ -151,6 +191,7 @@ function App() {
             <Route path="/admin/tests/:testId/edit" element={<AdminTestEditor />} />
             <Route path="/admin/tests/new" element={<AdminTestEditor />} />
             <Route path="/admin/live-classes" element={<AdminLiveClasses />} />
+            <Route path="/admin/notifications" element={<AdminNotifications />} />
             <Route path="/admin/students" element={<AdminStudents />} />
           </Route>
 

@@ -54,6 +54,7 @@ export default function LiveClasses() {
                     src={toYouTubeEmbed(active.youtube_url)}
                     title={active.title}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    sandbox="allow-scripts allow-same-origin allow-presentation"
                     allowFullScreen
                     className="absolute inset-0 h-full w-full"
                   />

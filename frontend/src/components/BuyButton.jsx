@@ -32,11 +32,47 @@ export default function BuyButton({ batch, onSuccess, className = "" }) {
         await api.post(`/enrollments/self/${batch.id}`);
         toast.success(`Enrolled in ${batch.name}`);
       } else {
+        // Create order on backend
         const { data } = await api.post(`/payments/checkout/${batch.id}`);
-        if (data?.mock) {
-          toast.success(`Payment success (demo) · enrolled in ${batch.name}`);
+        if (data?.already) {
+          toast.success(`Already enrolled in ${batch.name}`);
         } else {
-          toast.success(`Enrolled in ${batch.name}`);
+          // Load Razorpay script
+          await new Promise((resolve, reject) => {
+            if (window.Razorpay) return resolve(true);
+            const s = document.createElement("script");
+            s.src = "https://checkout.razorpay.com/v1/checkout.js";
+            s.onload = () => resolve(true);
+            s.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+            document.head.appendChild(s);
+          });
+
+          const order = data.order;
+          const options = {
+            key: data.key_id,
+            amount: order.amount,
+            currency: order.currency,
+            name: "Lecture Hub",
+            description: batch.name,
+            order_id: order.id,
+            handler: async function (res) {
+              try {
+                await api.post(`/payments/verify`, {
+                  razorpay_payment_id: res.razorpay_payment_id,
+                  razorpay_order_id: res.razorpay_order_id,
+                  razorpay_signature: res.razorpay_signature,
+                  batch_id: batch.id,
+                });
+                toast.success(`Payment successful · enrolled in ${batch.name}`);
+                onSuccess?.();
+              } catch (e) {
+                toast.error(e?.response?.data?.detail || "Payment verification failed");
+              }
+            },
+            modal: { ondismiss: () => { toast.error("Payment cancelled"); } },
+          };
+          const rzp = new window.Razorpay(options);
+          rzp.open();
         }
       }
       setConfirmOpen(false);

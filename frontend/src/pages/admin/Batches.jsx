@@ -11,8 +11,9 @@ import { toast } from "sonner";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import ImageUploadField from "@/components/ImageUploadField";
 import { resolveImage } from "@/lib/apiClient";
+import { formatPrice } from "@/components/BatchCard";
 
-const empty = { name: "", description: "", cover_url: "", target_exam: "", year: "" };
+const empty = { name: "", description: "", cover_url: "", target_exam: "", year: "", price: 0, currency: "INR" };
 
 export default function AdminBatches() {
   const [items, setItems] = useState([]);
@@ -34,7 +35,12 @@ export default function AdminBatches() {
   const openEdit = (b) => { setEditId(b.id); setForm({ ...empty, ...b, year: b.year || "" }); setOpen(true); };
 
   const save = async () => {
-    const payload = { ...form, year: form.year ? Number(form.year) : null };
+    const payload = {
+      ...form,
+      year: form.year ? Number(form.year) : null,
+      price: form.price === "" || form.price == null ? 0 : Number(form.price),
+      currency: form.currency || "INR",
+    };
     try {
       if (editId) await api.put(`/batches/${editId}`, payload);
       else await api.post(`/batches`, payload);
@@ -95,6 +101,7 @@ export default function AdminBatches() {
                   </td>
                   <td className="p-4 hidden sm:table-cell text-slate-600">{b.target_exam}</td>
                   <td className="p-4 hidden sm:table-cell text-slate-600">{b.year}</td>
+                  <td className="p-4 hidden sm:table-cell text-slate-600">{formatPrice(b.price, b.currency)}</td>
                   <td className="p-4 text-right">
                     <Button variant="ghost" size="sm" onClick={() => openEdit(b)} data-testid={`edit-batch-${b.id}`}>
                       <Pencil className="h-4 w-4" />
@@ -106,7 +113,7 @@ export default function AdminBatches() {
                 </tr>
               ))}
               {items.length === 0 && (
-                <tr><td colSpan={4} className="p-10 text-center text-slate-500">No batches yet.</td></tr>
+                <tr><td colSpan={5} className="p-10 text-center text-slate-500">No batches yet.</td></tr>
               )}
             </tbody>
           </table>
@@ -128,6 +135,19 @@ export default function AdminBatches() {
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Target Exam</Label><Input value={form.target_exam} onChange={(e) => setForm({ ...form, target_exam: e.target.value })} placeholder="NEET / JEE / CBSE" data-testid="batch-exam-input" /></div>
               <div><Label>Year</Label><Input type="number" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} data-testid="batch-year-input" /></div>
+            </div>
+            <div>
+              <Label>Price (₹)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value === "" ? 0 : Number(e.target.value) })}
+                placeholder="0 for free, 4999 for paid"
+                data-testid="batch-price-input"
+              />
+              <p className="text-xs text-slate-500 mt-1">Use 0 for a free batch, or enter the amount in rupees.</p>
             </div>
           </div>
           <DialogFooter>

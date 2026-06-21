@@ -68,6 +68,7 @@ export default function VideoPlayer() {
               src={embed}
               title={video.title}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              sandbox="allow-scripts allow-same-origin allow-presentation"
               allowFullScreen
               className="absolute inset-0 h-full w-full"
             />

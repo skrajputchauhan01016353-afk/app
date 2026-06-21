@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { api } from "@/lib/apiClient";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Library, Atom, BookOpen, Video, FileText, ClipboardList, Users, Radio, ArrowUpRight } from "lucide-react";
+import { Library, Atom, BookOpen, Video, FileText, ClipboardList, Users, Radio, Bell, ArrowUpRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const CARDS = [
@@ -12,6 +12,7 @@ const CARDS = [
   { key: "notes", label: "Notes", icon: FileText, color: "text-purple-700", bg: "bg-purple-50", href: "/admin/notes" },
   { key: "tests", label: "MCQ Tests", icon: ClipboardList, color: "text-[#1D4ED8]", bg: "bg-blue-50", href: "/admin/tests" },
   { key: "live_classes", label: "Live Classes", icon: Radio, color: "text-pink-700", bg: "bg-pink-50", href: "/admin/live-classes" },
+  { key: "notifications", label: "Notifications", icon: Bell, color: "text-amber-700", bg: "bg-amber-50", href: "/admin/notifications" },
   { key: "students", label: "Students", icon: Users, color: "text-[#1E40AF]", bg: "bg-blue-50", href: "/admin/students" },
 ];
 

@@ -101,6 +101,8 @@ class TestCRUD:
         r = requests.post(f"{API}/batches", json={"name": "TEST_Batch_Cascade"}, headers=admin_h(admin_token))
         assert r.status_code == 200
         batch = r.json()
+        assert batch["price"] == 0
+        assert batch["currency"] == "INR"
         bid = batch["id"]
         # subject
         r = requests.post(f"{API}/subjects", json={"batch_id": bid, "name": "TEST_Sub"}, headers=admin_h(admin_token))

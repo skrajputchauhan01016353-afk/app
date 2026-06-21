@@ -33,6 +33,14 @@ export function getToken() {
   return localStorage.getItem("lms_token");
 }
 
+export function sendAdminNotification(payload) {
+  return api.post("/notifications/send", payload);
+}
+
+export function getNotificationHistory() {
+  return api.get("/notifications/history");
+}
+
 export function formatApiError(err) {
   const detail = err?.response?.data?.detail;
   if (detail == null) return err?.message || "Something went wrong. Please try again.";

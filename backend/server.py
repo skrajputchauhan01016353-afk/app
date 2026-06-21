@@ -10,7 +10,7 @@ import logging
 import bcrypt
 import jwt
 from datetime import datetime, timezone, timedelta
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Request, Response, WebSocket, WebSocketDisconnect, UploadFile, File
 from starlette.middleware.cors import CORSMiddleware
@@ -20,6 +20,9 @@ from pydantic import BaseModel, Field, EmailStr
 import base64
 import asyncio
 from collections import defaultdict
+import hmac
+import hashlib
+import httpx
 
 mongo_url = os.environ["MONGO_URL"]
 client = AsyncIOMotorClient(mongo_url)
@@ -65,6 +68,11 @@ def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# Firebase Admin integration (initialized after logger is configured)
+USE_FIREBASE_ADMIN = False
+fb_messaging = None
+
+
 # ---------- Models ----------
 class UserPublic(BaseModel):
     id: str
@@ -92,8 +100,8 @@ class BatchIn(BaseModel):
     cover_url: Optional[str] = None
     target_exam: Optional[str] = None
     year: Optional[int] = None
-    price: float = 0  # 0 means free
-    currency: str = "INR"
+    price: float = Field(0, ge=0)  # 0 means free
+    currency: str = Field("INR", min_length=3, max_length=3)
 
 
 class SubjectIn(BaseModel):
@@ -124,6 +132,21 @@ class NoteIn(BaseModel):
     title: str
     url: str
     description: str = ""
+
+
+class FcmTokenIn(BaseModel):
+    token: str
+    platform: Optional[Literal["web", "pwa", "android", "browser"]] = "web"
+    user_agent: Optional[str] = None
+
+
+class NotificationSendIn(BaseModel):
+    mode: str
+    entity_id: Optional[str] = None
+    title: Optional[str] = None
+    body: Optional[str] = None
+    url: Optional[str] = None
+    data: Optional[dict] = None
 
 
 class QuestionIn(BaseModel):
@@ -215,6 +238,117 @@ def set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
+def get_fcm_server_key() -> str:
+    key = os.environ.get("FCM_SERVER_KEY")
+    if not key:
+        raise HTTPException(status_code=500, detail="FCM server key not configured")
+    return key
+
+
+def resolve_notification_url(url: Optional[str]) -> str:
+    if not url:
+        return "/"
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+    frontend = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    return f"{frontend}{url}" if frontend else url
+
+
+async def get_all_fcm_tokens(user_ids: Optional[List[str]] = None) -> List[str]:
+    query = {"user_id": {"$in": user_ids}} if user_ids else {}
+    tokens = await db.fcm_tokens.find(query, {"token": 1}).to_list(10000)
+    return [t["token"] for t in tokens if t.get("token")]
+
+
+async def log_notification_event(
+    user_id: str,
+    mode: str,
+    title: str,
+    body: str,
+    url: Optional[str],
+    target_count: int,
+    result: dict,
+) -> dict:
+    doc = {
+        "id": new_id(),
+        "type": mode,
+        "title": title,
+        "body": body,
+        "url": url,
+        "data": result.get("data") if result else None,
+        "target_count": target_count,
+        "success_count": result.get("success", 0) if result else 0,
+        "failure_count": result.get("failure", 0) if result else 0,
+        "status": "sent" if result and result.get("failure", 0) == 0 else "partial" if result and result.get("success", 0) > 0 else "failed",
+        "sent_by": user_id,
+        "created_at": now_iso(),
+    }
+    await db.notifications.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+async def send_fcm_message(tokens: List[str], title: str, body: str, url: Optional[str] = None, data: Optional[dict] = None) -> dict:
+    if not tokens:
+        return {"success": 0, "failure": 0, "skipped": 0}
+
+    headers = {
+        "Authorization": f"key={get_fcm_server_key()}",
+        "Content-Type": "application/json",
+    }
+    resolved_url = resolve_notification_url(url)
+    payload = {
+        "notification": {
+            "title": title,
+            "body": body,
+            "click_action": resolved_url,
+        },
+        "data": {"url": resolved_url, **(data or {})},
+        "webpush": {
+            "fcm_options": {"link": resolved_url},
+        },
+    }
+
+    success_count = 0
+    failure_count = 0
+    results = []
+    for i in range(0, len(tokens), 500):
+        chunk = tokens[i : i + 500]
+        body_payload = {**payload, "registration_ids": chunk}
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            r = await client.post("https://fcm.googleapis.com/fcm/send", json=body_payload, headers=headers)
+        if r.status_code != 200:
+            results.append({"status": r.status_code, "body": r.text})
+            failure_count += len(chunk)
+            continue
+        data_resp = r.json()
+        success_count += data_resp.get("success", 0)
+        failure_count += data_resp.get("failure", 0)
+        results.append(data_resp)
+
+    return {"success": success_count, "failure": failure_count, "results": results}
+
+
+async def save_fcm_token(user_id: str, token: str, platform: str = "web", user_agent: Optional[str] = None):
+    if not token:
+        return
+    now = now_iso()
+    await db.fcm_tokens.update_one(
+        {"user_id": user_id, "token": token},
+        {
+            "$set": {
+                "user_id": user_id,
+                "token": token,
+                "platform": platform,
+                "user_agent": user_agent,
+                "updated_at": now,
+            },
+            "$setOnInsert": {"created_at": now},
+        },
+        upsert=True,
+    )
+
+
 # ---------- Auth Endpoints ----------
 @api.post("/auth/register")
 async def register(body: RegisterIn, response: Response):
@@ -257,9 +391,81 @@ async def logout(response: Response):
     return {"ok": True}
 
 
+@api.post("/auth/fcm-token")
+async def register_fcm_token(body: FcmTokenIn, user: dict = Depends(get_current_user)):
+    await save_fcm_token(user["id"], body.token, body.platform or "web", body.user_agent)
+    return {"ok": True}
+
+
 @api.get("/auth/me", response_model=UserPublic)
 async def me(user: dict = Depends(get_current_user)):
     return user
+
+
+@api.get("/notifications/history")
+async def list_notifications(user: dict = Depends(require_admin)):
+    return await db.notifications.find({}, {"_id": 0}).sort("created_at", -1).to_list(1000)
+
+
+@api.post("/notifications/send")
+async def send_notification(body: NotificationSendIn, user: dict = Depends(require_admin)):
+    title = body.title or "Notification from GYAN RISE"
+    body_msg = body.body or "A new update is available."
+    url = body.url or "/"
+    if body.mode not in {"live_class", "new_batch", "content_upload", "custom"}:
+        raise HTTPException(status_code=400, detail="Invalid notification mode")
+
+    if body.mode == "live_class":
+        if body.entity_id:
+            live_class = await db.live_classes.find_one({"id": body.entity_id}, {"_id": 0})
+            if not live_class:
+                raise HTTPException(status_code=404, detail="Live class not found")
+            title = title or f"Live class started: {live_class['title']}"
+            body_msg = body_msg or f"{live_class['title']} is now live. Join the class."
+        else:
+            title = title or "Live class update"
+            body_msg = body_msg or "A live class has started. Check it out now."
+        url = url or "/live-classes"
+    elif body.mode == "new_batch":
+        if body.entity_id:
+            batch = await db.batches.find_one({"id": body.entity_id}, {"_id": 0})
+            if not batch:
+                raise HTTPException(status_code=404, detail="Batch not found")
+            title = title or f"New batch published: {batch['name']}"
+            body_msg = body_msg or (batch.get("description") or "New batch available now.")
+            url = url or f"/batches/{batch['id']}"
+        else:
+            title = title or "New batch published"
+            body_msg = body_msg or "A new batch is now available."
+            url = url or "/batches"
+    elif body.mode == "content_upload":
+        if body.entity_id:
+            note = await db.notes.find_one({"id": body.entity_id}, {"_id": 0})
+            if note:
+                title = title or f"New notes uploaded: {note['title']}"
+                body_msg = body_msg or "A new PDF note is available."
+                url = url or f"/chapters/{note['chapter_id']}"
+            else:
+                video = await db.videos.find_one({"id": body.entity_id}, {"_id": 0})
+                if video:
+                    title = title or f"New recording available: {video['title']}"
+                    body_msg = body_msg or "A new recording was uploaded."
+                    url = url or f"/videos/{video['id']}"
+                else:
+                    raise HTTPException(status_code=404, detail="Content not found")
+        else:
+            title = title or "New content available"
+            body_msg = body_msg or "New notes, PDFs, or recordings are now available."
+            url = url or "/"
+    else:
+        title = title or "Custom notification"
+        body_msg = body_msg or "A message from admin."
+        url = url or "/"
+
+    tokens = await get_all_fcm_tokens()
+    result = await send_fcm_message(tokens, title, body_msg, url, {**(body.data or {}), "mode": body.mode, "entity_id": body.entity_id})
+    await log_notification_event(user["id"], body.mode, title, body_msg, url, len(tokens), result)
+    return {"ok": True, "result": result}
 
 
 # ---------- Batches ----------
@@ -281,6 +487,18 @@ async def create_batch(body: BatchIn, user: dict = Depends(require_admin)):
     doc = {"id": new_id(), **body.model_dump(), "created_at": now_iso()}
     await db.batches.insert_one(doc)
     doc.pop("_id", None)
+    try:
+        tokens = await get_all_fcm_tokens()
+        if tokens:
+            await send_fcm_message(
+                tokens,
+                f"New batch published: {doc['name']}",
+                doc.get("description") or "A new batch is now available.",
+                f"/batches/{doc['id']}",
+                {"mode": "new_batch", "entity_id": doc['id']},
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to send batch notification: {exc}")
     return doc
 
 
@@ -396,8 +614,23 @@ async def get_chapter(chapter_id: str, user: dict = Depends(get_current_user)):
 # ---------- Videos ----------
 @api.get("/videos")
 async def list_videos(chapter_id: Optional[str] = None, user: dict = Depends(get_current_user)):
-    q = {"chapter_id": chapter_id} if chapter_id else {}
-    return await db.videos.find(q, {"_id": 0}).sort("order", 1).to_list(1000)
+    if chapter_id:
+        ch = await db.chapters.find_one({"id": chapter_id}, {"_id": 0})
+        if not ch:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+        sub = await db.subjects.find_one({"id": ch["subject_id"]}, {"_id": 0}) if ch else None
+        if sub:
+            await ensure_batch_access(sub["batch_id"], user)
+        q = {"chapter_id": chapter_id}
+        return await db.videos.find(q, {"_id": 0}).sort("order", 1).to_list(1000)
+    # No chapter_id: for admin return all, else return videos only for enrolled batches
+    if user.get("role") == "admin":
+        return await db.videos.find({}, {"_id": 0}).sort("order", 1).to_list(1000)
+    enrolls = await db.enrollments.find({"student_id": user["id"]}, {"_id": 0}).to_list(1000)
+    batch_ids = [e["batch_id"] for e in enrolls]
+    subjects = await db.subjects.find({"batch_id": {"$in": batch_ids}}, {"_id": 0}).to_list(2000)
+    chapter_ids = [c["id"] async for c in db.chapters.find({"subject_id": {"$in": [s["id"] for s in subjects]}})]
+    return await db.videos.find({"chapter_id": {"$in": chapter_ids}}, {"_id": 0}).sort("order", 1).to_list(1000)
 
 
 @api.post("/videos")
@@ -405,6 +638,18 @@ async def create_video(body: VideoIn, user: dict = Depends(require_admin)):
     doc = {"id": new_id(), **body.model_dump(), "created_at": now_iso()}
     await db.videos.insert_one(doc)
     doc.pop("_id", None)
+    try:
+        tokens = await get_all_fcm_tokens()
+        if tokens:
+            await send_fcm_message(
+                tokens,
+                f"New recording available: {doc['title']}",
+                "A new lecture recording has been uploaded.",
+                f"/videos/{doc['id']}",
+                {"mode": "content_upload", "entity_id": doc['id']},
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to send video notification: {exc}")
     return doc
 
 
@@ -425,14 +670,32 @@ async def get_video(video_id: str, user: dict = Depends(get_current_user)):
     v = await db.videos.find_one({"id": video_id}, {"_id": 0})
     if not v:
         raise HTTPException(status_code=404, detail="Video not found")
+    ch = await db.chapters.find_one({"id": v["chapter_id"]}, {"_id": 0})
+    sub = await db.subjects.find_one({"id": ch["subject_id"]}, {"_id": 0}) if ch else None
+    if sub:
+        await ensure_batch_access(sub["batch_id"], user)
     return v
 
 
 # ---------- Notes ----------
 @api.get("/notes")
 async def list_notes(chapter_id: Optional[str] = None, user: dict = Depends(get_current_user)):
-    q = {"chapter_id": chapter_id} if chapter_id else {}
-    return await db.notes.find(q, {"_id": 0}).to_list(1000)
+    if chapter_id:
+        ch = await db.chapters.find_one({"id": chapter_id}, {"_id": 0})
+        if not ch:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+        sub = await db.subjects.find_one({"id": ch["subject_id"]}, {"_id": 0}) if ch else None
+        if sub:
+            await ensure_batch_access(sub["batch_id"], user)
+        q = {"chapter_id": chapter_id}
+        return await db.notes.find(q, {"_id": 0}).to_list(1000)
+    if user.get("role") == "admin":
+        return await db.notes.find({}, {"_id": 0}).to_list(1000)
+    enrolls = await db.enrollments.find({"student_id": user["id"]}, {"_id": 0}).to_list(1000)
+    batch_ids = [e["batch_id"] for e in enrolls]
+    subjects = await db.subjects.find({"batch_id": {"$in": batch_ids}}, {"_id": 0}).to_list(2000)
+    chapter_ids = [c["id"] async for c in db.chapters.find({"subject_id": {"$in": [s["id"] for s in subjects]}})]
+    return await db.notes.find({"chapter_id": {"$in": chapter_ids}}, {"_id": 0}).to_list(1000)
 
 
 @api.post("/notes")
@@ -440,6 +703,18 @@ async def create_note(body: NoteIn, user: dict = Depends(require_admin)):
     doc = {"id": new_id(), **body.model_dump(), "created_at": now_iso()}
     await db.notes.insert_one(doc)
     doc.pop("_id", None)
+    try:
+        tokens = await get_all_fcm_tokens()
+        if tokens:
+            await send_fcm_message(
+                tokens,
+                f"New notes uploaded: {doc['title']}",
+                "A new PDF note is available for your course.",
+                f"/chapters/{doc['chapter_id']}",
+                {"mode": "content_upload", "entity_id": doc['id']},
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to send note notification: {exc}")
     return doc
 
 
@@ -448,7 +723,11 @@ async def update_note(note_id: str, body: NoteIn, user: dict = Depends(require_a
     await db.notes.update_one({"id": note_id}, {"$set": body.model_dump()})
     return await db.notes.find_one({"id": note_id}, {"_id": 0})
 
-
+    ch = await db.chapters.find_one({"id": doc["chapter_id"]}, {"_id": 0})
+    sub = await db.subjects.find_one({"id": ch["subject_id"]}, {"_id": 0}) if ch else None
+    if sub:
+        await ensure_batch_access(sub["batch_id"], user)
+    return doc
 @api.delete("/notes/{note_id}")
 async def delete_note(note_id: str, user: dict = Depends(require_admin)):
     await db.notes.delete_one({"id": note_id})
@@ -458,8 +737,24 @@ async def delete_note(note_id: str, user: dict = Depends(require_admin)):
 # ---------- Tests / MCQ ----------
 @api.get("/tests")
 async def list_tests(chapter_id: Optional[str] = None, user: dict = Depends(get_current_user)):
-    q = {"chapter_id": chapter_id} if chapter_id else {}
-    tests = await db.tests.find(q, {"_id": 0}).to_list(1000)
+    if chapter_id:
+        ch = await db.chapters.find_one({"id": chapter_id}, {"_id": 0})
+        if not ch:
+            raise HTTPException(status_code=404, detail="Chapter not found")
+        sub = await db.subjects.find_one({"id": ch["subject_id"]}, {"_id": 0}) if ch else None
+        if sub:
+            await ensure_batch_access(sub["batch_id"], user)
+        q = {"chapter_id": chapter_id}
+        tests = await db.tests.find(q, {"_id": 0}).to_list(1000)
+    else:
+        if user.get("role") == "admin":
+            tests = await db.tests.find({}, {"_id": 0}).to_list(1000)
+        else:
+            enrolls = await db.enrollments.find({"student_id": user["id"]}, {"_id": 0}).to_list(1000)
+            batch_ids = [e["batch_id"] for e in enrolls]
+            subjects = await db.subjects.find({"batch_id": {"$in": batch_ids}}, {"_id": 0}).to_list(2000)
+            chapter_ids = [c["id"] async for c in db.chapters.find({"subject_id": {"$in": [s["id"] for s in subjects]}})]
+            tests = await db.tests.find({"chapter_id": {"$in": chapter_ids}}, {"_id": 0}).to_list(1000)
     if user.get("role") != "admin":
         for t in tests:
             for qd in t.get("questions", []):
@@ -520,6 +815,11 @@ async def get_test(test_id: str, user: dict = Depends(get_current_user)):
     t = await db.tests.find_one({"id": test_id}, {"_id": 0})
     if not t:
         raise HTTPException(status_code=404, detail="Test not found")
+    # Enforce batch access by resolving chapter -> subject -> batch
+    ch = await db.chapters.find_one({"id": t["chapter_id"]}, {"_id": 0}) if t else None
+    sub = await db.subjects.find_one({"id": ch["subject_id"]}, {"_id": 0}) if ch else None
+    if sub:
+        await ensure_batch_access(sub["batch_id"], user)
     if user.get("role") != "admin":
         for qd in t.get("questions", []):
             qd.pop("correct_index", None)
@@ -564,8 +864,17 @@ def _compute_status(item: dict) -> str:
 
 @api.get("/live-classes")
 async def list_live_classes(batch_id: Optional[str] = None, user: dict = Depends(get_current_user)):
-    q = {"batch_id": batch_id} if batch_id else {}
-    items = await db.live_classes.find(q, {"_id": 0}).sort("start_time", 1).to_list(1000)
+    if batch_id:
+        await ensure_batch_access(batch_id, user)
+        q = {"batch_id": batch_id}
+        items = await db.live_classes.find(q, {"_id": 0}).sort("start_time", 1).to_list(1000)
+    else:
+        if user.get("role") == "admin":
+            items = await db.live_classes.find({}, {"_id": 0}).sort("start_time", 1).to_list(1000)
+        else:
+            enrolls = await db.enrollments.find({"student_id": user["id"]}, {"_id": 0}).to_list(1000)
+            batch_ids = [e["batch_id"] for e in enrolls]
+            items = await db.live_classes.find({"batch_id": {"$in": batch_ids}}, {"_id": 0}).sort("start_time", 1).to_list(1000)
     for it in items:
         it["status"] = _compute_status(it)
     return items
@@ -576,6 +885,18 @@ async def create_live_class(body: LiveClassIn, user: dict = Depends(require_admi
     doc = {"id": new_id(), **body.model_dump(), "created_at": now_iso()}
     await db.live_classes.insert_one(doc)
     doc.pop("_id", None)
+    try:
+        tokens = await get_all_fcm_tokens()
+        if tokens:
+            await send_fcm_message(
+                tokens,
+                f"Live class published: {doc['title']}",
+                "A new live class has been scheduled. Join when it starts.",
+                f"/live-classes",
+                {"mode": "live_class", "entity_id": doc['id']},
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to send live class notification: {exc}")
     return doc
 
 
@@ -622,6 +943,18 @@ async def publish_recording(lc_id: str, user: dict = Depends(require_admin)):
     await db.videos.insert_one(dict(video))
     await db.live_classes.update_one({"id": lc_id}, {"$set": {"recording_video_id": video["id"]}})
     video.pop("_id", None)
+    try:
+        tokens = await get_all_fcm_tokens()
+        if tokens:
+            await send_fcm_message(
+                tokens,
+                f"Recording published: {video['title']}",
+                "A new recording has been uploaded to your course.",
+                f"/videos/{video['id']}",
+                {"mode": "content_upload", "entity_id": video['id']},
+            )
+    except Exception as exc:
+        logger.warning(f"Failed to send recording notification: {exc}")
     return {"ok": True, "video": video}
 
 
@@ -663,37 +996,120 @@ async def self_enroll(batch_id: str, user: dict = Depends(get_current_user)):
     return doc
 
 
-# ---------- Payments (Razorpay-ready, MOCKED until keys are added) ----------
+
+# ---------- Payments (Razorpay integration) ----------
+
+def get_razorpay_keys():
+    key_id = os.environ.get("RAZORPAY_KEY_ID")
+    key_secret = os.environ.get("RAZORPAY_KEY_SECRET")
+    if not key_id or not key_secret:
+        raise HTTPException(status_code=500, detail="Razorpay credentials not configured on server")
+    return key_id, key_secret
+
+
+async def _create_enrollment_for_user(user_id: str, batch_id: str, payment_id: str):
+    existing = await db.enrollments.find_one({"student_id": user_id, "batch_id": batch_id})
+    if existing:
+        return {"ok": True, "already": True}
+    enrollment = {"id": new_id(), "student_id": user_id, "batch_id": batch_id, "enrolled_at": now_iso(), "payment_id": payment_id}
+    await db.enrollments.insert_one(dict(enrollment))
+    enrollment.pop("_id", None)
+    return enrollment
+
+
 @api.post("/payments/checkout/{batch_id}")
 async def payments_checkout(batch_id: str, user: dict = Depends(get_current_user)):
-    """Initiate checkout for a paid batch. CURRENTLY MOCKED — auto-marks paid and enrolls.
-    Architecture-ready for Razorpay: replace this body with razorpay.Order.create(...) and
-    return {order_id, amount, currency, key_id}. Verify webhook on /payments/webhook
-    then call _create_enrollment().
-    """
+    """Create a Razorpay order and return order details for checkout on frontend."""
     batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
+    # Block if already enrolled
     existing = await db.enrollments.find_one({"student_id": user["id"], "batch_id": batch_id})
     if existing:
-        return {"ok": True, "already": True, "mock": True}
+        return {"ok": True, "already": True}
+    price = int((batch.get("price", 0) or 0) * 100)  # amount in paise
+    if price <= 0:
+        raise HTTPException(status_code=400, detail="Batch is free — use enroll endpoint")
+
+    key_id, key_secret = get_razorpay_keys()
+    # Receipt must be <= 40 chars for Razorpay
+    short_id = new_id()[:12]  # Use first 12 chars of UUID
+    payload = {
+        "amount": price,
+        "currency": batch.get("currency", "INR"),
+        "receipt": f"ord_{short_id}",  # "ord_" (4) + 12 chars UUID = 16 chars total
+        "payment_capture": 1,
+        "notes": {"batch_id": batch_id, "user_id": user["id"]},
+    }
+    async with httpx.AsyncClient(auth=(key_id, key_secret), timeout=30.0) as client:
+        r = await client.post("https://api.razorpay.com/v1/orders", json=payload)
+    if r.status_code != 200 and r.status_code != 201:
+        raise HTTPException(status_code=502, detail=f"Razorpay order creation failed: {r.text}")
+    order = r.json()
+    return {"ok": True, "order": {"id": order.get("id"), "amount": order.get("amount"), "currency": order.get("currency")}, "key_id": key_id}
+
+
+class PaymentVerifyIn(BaseModel):
+    razorpay_payment_id: str
+    razorpay_order_id: str
+    razorpay_signature: str
+    batch_id: str
+
+
+@api.post("/payments/verify")
+async def payments_verify(body: PaymentVerifyIn, user: dict = Depends(get_current_user)):
+    """Verify Razorpay payment signature and create payment record + enrollment."""
+    key_id, key_secret = get_razorpay_keys()
+    # Compute expected signature
+    msg = f"{body.razorpay_order_id}|{body.razorpay_payment_id}".encode()
+    expected = hmac.new(key_secret.encode(), msg, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, body.razorpay_signature):
+        raise HTTPException(status_code=400, detail="Invalid payment signature")
+
+    # Optional: fetch payment details from Razorpay to validate amount/status
+    async with httpx.AsyncClient(auth=(key_id, key_secret), timeout=30.0) as client:
+        resp = await client.get(f"https://api.razorpay.com/v1/payments/{body.razorpay_payment_id}")
+    if resp.status_code != 200:
+        raise HTTPException(status_code=502, detail="Failed to fetch payment details from Razorpay")
+    payinfo = resp.json()
+    # Record payment
     payment = {
         "id": new_id(),
         "user_id": user["id"],
-        "batch_id": batch_id,
-        "amount": batch.get("price", 0),
-        "currency": batch.get("currency", "INR"),
-        "status": "paid",  # MOCKED
-        "provider": "mock",
-        "provider_order_id": f"mock_{new_id()[:12]}",
+        "batch_id": body.batch_id,
+        "amount": payinfo.get("amount") / 100.0 if payinfo.get("amount") is not None else None,
+        "currency": payinfo.get("currency"),
+        "status": payinfo.get("status"),
+        "provider": "razorpay",
+        "provider_order_id": body.razorpay_order_id,
+        "provider_payment_id": body.razorpay_payment_id,
+        "provider_signature": body.razorpay_signature,
         "created_at": now_iso(),
     }
     await db.payments.insert_one(dict(payment))
-    enrollment = {"id": new_id(), "student_id": user["id"], "batch_id": batch_id, "enrolled_at": now_iso(), "payment_id": payment["id"]}
-    await db.enrollments.insert_one(dict(enrollment))
+
+    # Enroll student
+    enrollment = await _create_enrollment_for_user(user["id"], body.batch_id, payment["id"])
+
     payment.pop("_id", None)
-    enrollment.pop("_id", None)
-    return {"ok": True, "mock": True, "payment": payment, "enrollment": enrollment}
+    return {"ok": True, "payment": payment, "enrollment": enrollment}
+
+
+async def ensure_batch_access(batch_id: str, user: dict):
+    # Admin bypass
+    if user.get("role") == "admin":
+        return True
+    batch = await db.batches.find_one({"id": batch_id}, {"_id": 0})
+    if not batch:
+        raise HTTPException(status_code=404, detail="Batch not found")
+    # Free batch -> allowed
+    if (batch.get("price") or 0) == 0:
+        return True
+    # Check enrollment
+    enrolled = await db.enrollments.find_one({"student_id": user.get("id"), "batch_id": batch_id})
+    if enrolled:
+        return True
+    raise HTTPException(status_code=402, detail="Purchase required to access this content")
 
 
 @api.get("/payments/me")
@@ -1230,6 +1646,8 @@ async def on_startup():
     await db.tests.create_index("id", unique=True)
     await db.live_classes.create_index("id", unique=True)
     await db.enrollments.create_index([("student_id", 1), ("batch_id", 1)])
+    await db.batches.update_many({"price": {"$exists": False}}, {"$set": {"price": 0}})
+    await db.batches.update_many({"currency": {"$exists": False}}, {"$set": {"currency": "INR"}})
     await seed_users()
     await seed_content()
     logger.info("LMS startup complete")
